@@ -1,4 +1,4 @@
-import { Building, Item, ItemDef } from './types';
+import { Building, BuildingDef, Item, ItemDef } from './types';
 import { buildingDefs, getBuildingsByCategory } from './data/buildings';
 import { itemDefs } from './data/items';
 import { GameEngine } from './GameEngine';
@@ -10,7 +10,7 @@ export class UI {
   private container: HTMLElement;
   private engine: GameEngine;
   private tooltipEl: HTMLElement | null = null;
-  private activeTooltipItemId: string | null = null;
+  private activeTooltipTargetId: string | null = null;
 
   constructor(container: HTMLElement, engine: GameEngine) {
     this.container = container;
@@ -20,6 +20,12 @@ export class UI {
 
   render(): void {
     const state = this.engine.state;
+    const workerEmitter = state.townCore.emitters.find(e => e.id === 'spawn_worker');
+    const workerElapsed = workerEmitter ? Math.max(0, state.time - workerEmitter.lastTrigger) : 0;
+    const workerProgress = workerEmitter && !state.awaitingTownPlacement
+      ? Math.min(workerElapsed / workerEmitter.everySec, 1)
+      : 0;
+    const workerEta = workerEmitter ? Math.max(0, workerEmitter.everySec - workerElapsed) : 0;
 
     this.container.innerHTML = `
       <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
@@ -40,6 +46,12 @@ export class UI {
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 20px;">💰</span>
               <span style="font-weight: bold; font-size: 18px; color: #ffd700;">${Math.floor(state.resources.gold)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">👥</span>
+              <span style="font-weight: bold; font-size: 18px; color: ${state.population >= state.populationCap ? '#f66' : '#9fd0ff'};">
+                ${state.population} / ${state.populationCap}
+              </span>
             </div>
           </div>
 
@@ -87,6 +99,15 @@ export class UI {
               <div style="background: linear-gradient(90deg, ${state.townCore.hp > 1000 ? '#0f0' : state.townCore.hp > 500 ? '#ff0' : '#f00'}, ${state.townCore.hp > 1000 ? '#0a0' : state.townCore.hp > 500 ? '#cc0' : '#a00'}); height: 100%; width: ${(state.townCore.hp / state.townCore.maxHp) * 100}%;"></div>
             </div>
             <div style="font-size: 13px; margin-top: 4px; text-align: center; color: #aaa;">${Math.ceil(state.townCore.hp)} / ${state.townCore.maxHp}</div>
+            <div style="margin-top: 10px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #9fd0ff; font-weight: bold;">
+                <span>Next worker</span>
+                <span>${workerEta.toFixed(1)}s</span>
+              </div>
+              <div style="background: #111; height: 10px; border-radius: 6px; overflow: hidden; border: 1px solid #334;">
+                <div style="background: linear-gradient(90deg, #4da3ff, #66d0ff); height: 100%; width: ${workerProgress * 100}%; transition: width 0.2s;"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -125,10 +146,10 @@ export class UI {
       </div>
     `;
 
-    if (this.activeTooltipItemId) {
-      const activeTarget = this.container.querySelector(`[data-item-id="${this.activeTooltipItemId}"]`);
+    if (this.activeTooltipTargetId) {
+      const activeTarget = this.container.querySelector(`[data-tooltip-id="${this.activeTooltipTargetId}"]`);
       if (!activeTarget) {
-        this.hideInventoryTooltip();
+        this.hideTooltip();
       }
     }
 
@@ -153,49 +174,48 @@ export class UI {
 
     return `
       <div style="position: absolute; left: ${screenPos.x}px; top: ${screenPos.y}px; transform: translate(-50%, -50%); pointer-events: auto;">
-        <div style="background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(40,40,60,0.95)); padding: 16px; border-radius: 12px; border: 3px solid #4488ff; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 280px;">
-          <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; text-align: center; color: #4488ff;">🏗️ Build Menu</div>
+        <div style="background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(40,40,60,0.95)); padding: 12px; border-radius: 10px; border: 3px solid #4488ff; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 260px;">
+          <div style="font-size: 15px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #4488ff;">🏗️ Build Menu</div>
 
           ${categories.map(({ name, cat, icon }) => {
             const buildings = getBuildingsByCategory(cat);
             if (buildings.length === 0) return '';
 
             return `
-              <div style="margin-bottom: 12px;">
-                <div style="font-size: 13px; font-weight: bold; color: #888; margin-bottom: 6px;">${icon} ${name}</div>
-                <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="margin-bottom: 10px;">
+                <div style="font-size: 12px; font-weight: bold; color: #888; margin-bottom: 4px;">${icon} ${name}</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 52px); gap: 6px;">
                   ${buildings.map(def => {
                     const canAfford = this.engine.canAfford(def.cost);
+                    const tooltipCost = `${def.cost.wood ? `🌲${def.cost.wood} ` : ''}${def.cost.ore ? `⛰️${def.cost.ore} ` : ''}${def.cost.gold ? `💰${def.cost.gold}` : ''}`.trim();
                     return `
                       <button
                         data-build="${def.id}"
+                        data-tooltip-id="build-${def.id}"
+                        data-build-name="${def.name}"
+                        data-build-desc="${def.description}"
+                        data-build-cost="${tooltipCost || 'Free'}"
+                        data-build-pop="${def.populationBonus || 0}"
                         style="
-                          padding: 8px 12px;
-                          background: ${canAfford ? 'linear-gradient(135deg, #444, #333)' : '#222'};
-                          color: ${canAfford ? '#fff' : '#666'};
+                          width: 52px;
+                          height: 52px;
+                          background: ${canAfford ? 'linear-gradient(135deg, #333, #222)' : '#181818'};
+                          color: ${canAfford ? '#fff' : '#555'};
                           border: 2px solid ${canAfford ? '#666' : '#333'};
-                          border-radius: 6px;
+                          border-radius: 8px;
                           cursor: ${canAfford ? 'pointer' : 'not-allowed'};
-                          font-size: 13px;
-                          text-align: left;
-                          transition: all 0.2s;
+                          font-size: 22px;
                           display: flex;
-                          justify-content: space-between;
                           align-items: center;
+                          justify-content: center;
+                          transition: all 0.15s ease;
+                          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
                         "
                         ${!canAfford ? 'disabled' : ''}
-                        onmouseover="if(!this.disabled) this.style.background='linear-gradient(135deg, #555, #444)'; if(!this.disabled) this.style.borderColor='#888';"
-                        onmouseout="if(!this.disabled) this.style.background='linear-gradient(135deg, #444, #333)'; if(!this.disabled) this.style.borderColor='#666';"
+                        onmouseover="if(!this.disabled) { this.style.transform='translateY(-2px)'; this.style.borderColor='#88aaff'; }"
+                        onmouseout="if(!this.disabled) { this.style.transform='translateY(0)'; this.style.borderColor='${canAfford ? '#666' : '#333'}'; }"
                       >
-                        <div>
-                          <span style="font-size: 18px; margin-right: 8px;">${def.icon}</span>
-                          <span style="font-weight: bold;">${def.name}</span>
-                        </div>
-                        <div style="font-size: 11px; color: #aaa;">
-                          ${def.cost.wood ? `🌲${def.cost.wood}` : ''}
-                          ${def.cost.ore ? `⛰️${def.cost.ore}` : ''}
-                          ${def.cost.gold ? `💰${def.cost.gold}` : ''}
-                        </div>
+                        ${def.icon}
                       </button>
                     `;
                   }).join('')}
@@ -364,6 +384,7 @@ export class UI {
       <div
         data-item-id="${item.id}"
         data-item-def-id="${def.id}"
+        data-tooltip-id="item-${item.id}"
         draggable="true"
         style="
           background: linear-gradient(135deg, #222, #111);
@@ -408,6 +429,19 @@ export class UI {
           this.render();
         }
       });
+
+      btn.addEventListener('mouseenter', () => {
+        const defId = btn.getAttribute('data-build');
+        const tooltipId = btn.getAttribute('data-tooltip-id');
+        if (defId && tooltipId) {
+          const def = buildingDefs[defId];
+          if (def) {
+            this.showTooltip(btn as HTMLElement, this.renderBuildingTooltip(def), tooltipId);
+          }
+        }
+      });
+
+      btn.addEventListener('mouseleave', () => this.hideTooltip());
     });
 
     // Close build menu
@@ -459,15 +493,15 @@ export class UI {
 
       item.addEventListener('mouseenter', () => {
         const defId = item.getAttribute('data-item-def-id');
-        const itemId = item.getAttribute('data-item-id');
-        if (!defId || !itemId) return;
+        const tooltipId = item.getAttribute('data-tooltip-id');
+        if (!defId || !tooltipId) return;
         const def = itemDefs[defId];
         if (!def) return;
-        this.showInventoryTooltip(item as HTMLElement, def, itemId);
+        this.showTooltip(item as HTMLElement, this.renderInventoryTooltip(def), tooltipId);
       });
 
       item.addEventListener('mouseleave', () => {
-        this.hideInventoryTooltip();
+        this.hideTooltip();
       });
     });
 
@@ -530,7 +564,7 @@ export class UI {
     return this.tooltipEl;
   }
 
-  private showInventoryTooltip(target: HTMLElement, itemDef: ItemDef, itemId: string): void {
+  private renderInventoryTooltip(itemDef: ItemDef): string {
     const rarityColors: Record<string, string> = {
       common: '#fff',
       uncommon: '#0f0',
@@ -538,9 +572,7 @@ export class UI {
       epic: '#a0f'
     };
 
-    this.activeTooltipItemId = itemId;
-    const tooltip = this.ensureTooltipElement();
-    tooltip.innerHTML = `
+    return `
       <div style="display: flex; gap: 10px; align-items: center;">
         <div style="font-size: 30px;">${itemDef.icon}</div>
         <div>
@@ -549,6 +581,35 @@ export class UI {
         </div>
       </div>
     `;
+  }
+
+  private renderBuildingTooltip(def: BuildingDef): string {
+    const costParts = [
+      def.cost.wood ? `🌲${def.cost.wood}` : '',
+      def.cost.ore ? `⛰️${def.cost.ore}` : '',
+      def.cost.gold ? `💰${def.cost.gold}` : ''
+    ].filter(Boolean).join(' ');
+    const popLine = def.populationBonus
+      ? `<div style="font-size: 11px; color: #8df; margin-top: 4px;">+${def.populationBonus} max population</div>`
+      : '';
+
+    return `
+      <div style="display: flex; gap: 10px; align-items: flex-start;">
+        <div style="font-size: 26px;">${def.icon}</div>
+        <div>
+          <div style="font-weight: bold; font-size: 14px; color: #9fd0ff;">${def.name}</div>
+          <div style="font-size: 12px; color: #ccc; margin-top: 2px;">${def.description}</div>
+          <div style="font-size: 11px; color: #aaa; margin-top: 6px;">Cost: ${costParts || 'Free'}</div>
+          ${popLine}
+        </div>
+      </div>
+    `;
+  }
+
+  private showTooltip(target: HTMLElement, content: string, tooltipId: string): void {
+    this.activeTooltipTargetId = tooltipId;
+    const tooltip = this.ensureTooltipElement();
+    tooltip.innerHTML = content;
 
     tooltip.style.display = 'block';
     tooltip.style.visibility = 'hidden';
@@ -570,8 +631,8 @@ export class UI {
     });
   }
 
-  private hideInventoryTooltip(): void {
-    this.activeTooltipItemId = null;
+  private hideTooltip(): void {
+    this.activeTooltipTargetId = null;
     if (this.tooltipEl) {
       this.tooltipEl.style.opacity = '0';
       this.tooltipEl.style.transform = 'translateY(-4px)';

@@ -21,10 +21,12 @@ export class MapGenerator {
     const nodes: ResourceNode[] = [];
     let idCounter = 0;
 
+    const sizeScale = 1 / 3;
+
     const center: Vec2 = { x: worldSize.x / 2, y: worldSize.y / 2 };
     const clearings: Clearing[] = [
-      // Central clearing
-      { center, radius: 100, softness: 40 }
+      // Central clearing (scaled down)
+      { center, radius: 100 * sizeScale, softness: 40 * sizeScale }
     ];
 
     // Create small clearings scattered across the map
@@ -38,11 +40,11 @@ export class MapGenerator {
       };
 
       // Vary clearing sizes (compact for single-screen)
-      const radius = 35 + this.random() * 50;
+      const radius = (35 + this.random() * 50) * sizeScale;
       clearings.push({
         center: position,
         radius,
-        softness: 20 + this.random() * 15
+        softness: (20 + this.random() * 15) * sizeScale
       });
     }
 
@@ -55,8 +57,8 @@ export class MapGenerator {
 
       clearings.push({
         center: position,
-        radius: 25 + this.random() * 35,
-        softness: 15 + this.random() * 12
+        radius: (25 + this.random() * 35) * sizeScale,
+        softness: (15 + this.random() * 12) * sizeScale
       });
     }
 
@@ -101,13 +103,13 @@ export class MapGenerator {
           paths.push({
             from: clearing.center,
             to: midpoint,
-            width: 35 + this.random() * 35
+            width: (35 + this.random() * 35) * sizeScale
           });
 
           paths.push({
             from: midpoint,
             to: targetClearing.center,
-            width: 35 + this.random() * 35
+            width: (35 + this.random() * 35) * sizeScale
           });
         }
       }
@@ -150,7 +152,7 @@ export class MapGenerator {
       paths.push({
         from: entryPoint,
         to: nearestClearing.center,
-        width: 45 + this.random() * 35
+        width: (45 + this.random() * 35) * sizeScale
       });
     }
 
@@ -166,7 +168,7 @@ export class MapGenerator {
         if (this.inClearing(pos, clearings, paths)) continue;
 
         const isOre = this.random() < 0.28;
-        const size = isOre ? 15 + this.random() * 6 : 20 + this.random() * 6;
+        const size = (isOre ? 15 + this.random() * 6 : 20 + this.random() * 6) * sizeScale;
         nodes.push({
           id: `${isOre ? 'ore' : 'tree'}_${idCounter++}`,
           type: isOre ? 'ore' : 'tree',

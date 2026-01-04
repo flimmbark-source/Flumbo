@@ -6,9 +6,10 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Town Hall',
     icon: '🏛️',
     maxHp: 2000,
-    radius: 30,
+    radius: 10,
     category: 'core',
     cost: {},
+    populationBonus: 10,
     baseEmitters: [{
       id: 'spawn_worker',
       everySec: 12.0,
@@ -30,7 +31,7 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Barracks',
     icon: '⚔️',
     maxHp: 800,
-    radius: 25,
+    radius: 8,
     category: 'production',
     cost: { wood: 150, ore: 50 },
     baseEmitters: [{
@@ -54,7 +55,7 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Sanctum',
     icon: '✨',
     maxHp: 600,
-    radius: 22,
+    radius: 7,
     category: 'production',
     cost: { wood: 120, gold: 80 },
     baseEmitters: [{
@@ -78,7 +79,7 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Arrow Tower',
     icon: '🗼',
     maxHp: 500,
-    radius: 20,
+    radius: 7,
     category: 'military',
     cost: { wood: 80, ore: 40 },
     baseEmitters: [{
@@ -103,7 +104,7 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Storage Hut',
     icon: '📦',
     maxHp: 400,
-    radius: 16,
+    radius: 5,
     category: 'resource',
     cost: { wood: 60 },
     baseEmitters: [],
@@ -115,7 +116,7 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Tech Lab',
     icon: '🔬',
     maxHp: 600,
-    radius: 22,
+    radius: 7,
     category: 'tech',
     cost: { wood: 100, ore: 80, gold: 50 },
     baseEmitters: [],
@@ -127,11 +128,24 @@ export const buildingDefs: Record<string, BuildingDef> = {
     name: 'Forge',
     icon: '🔨',
     maxHp: 700,
-    radius: 22,
+    radius: 7,
     category: 'tech',
     cost: { wood: 120, ore: 100 },
     baseEmitters: [],
     description: 'Improves item quality and socketing bonuses'
+  },
+
+  longhouse: {
+    id: 'longhouse',
+    name: 'Longhouse',
+    icon: '🏚️',
+    maxHp: 500,
+    radius: 7,
+    category: 'resource',
+    cost: { wood: 90, gold: 25 },
+    populationBonus: 8,
+    baseEmitters: [],
+    description: 'Adds lodging for your followers, increasing population capacity.'
   }
 };
 

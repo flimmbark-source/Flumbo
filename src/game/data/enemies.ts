@@ -7,7 +7,7 @@ export const enemyDefs: Record<string, EnemyDef> = {
     maxHp: 60,
     speed: 45,
     damage: 8,
-    size: 12,
+    size: 4,
     color: '#4a9c2d',
     lootChance: 0.3
   },
@@ -18,7 +18,7 @@ export const enemyDefs: Record<string, EnemyDef> = {
     maxHp: 120,
     speed: 35,
     damage: 15,
-    size: 16,
+    size: 5,
     color: '#8b4513',
     lootChance: 0.4
   },
@@ -29,7 +29,7 @@ export const enemyDefs: Record<string, EnemyDef> = {
     maxHp: 250,
     speed: 25,
     damage: 25,
-    size: 24,
+    size: 8,
     color: '#654321',
     lootChance: 0.6
   }
@@ -59,7 +59,7 @@ export const unitDefs: Record<string, UnitDef> = {
     maxHp: 50,
     speed: 60,
     damage: 3,
-    size: 8,
+    size: 3,
     attackRange: 30,
     attackCooldown: 2.0,
     gatherRate: 10,
@@ -74,7 +74,7 @@ export const unitDefs: Record<string, UnitDef> = {
     maxHp: 100,
     speed: 55,
     damage: 15,
-    size: 10,
+    size: 3,
     attackRange: 50,
     attackCooldown: 1.2,
     color: '#ff4444'
@@ -87,7 +87,7 @@ export const unitDefs: Record<string, UnitDef> = {
     maxHp: 70,
     speed: 50,
     damage: 0,
-    size: 9,
+    size: 3,
     attackRange: 120,
     attackCooldown: 2.5,
     color: '#44ff88'
