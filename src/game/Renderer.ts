@@ -9,6 +9,8 @@ import { enemyDefs, unitDefs } from './data/enemies';
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private canvas: HTMLCanvasElement;
+  private forestSpots: { x: number; y: number; radius: number; inner: string; outer: string }[] = [];
+  private forestSpotsSize: Vec2 | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -112,24 +114,30 @@ export class Renderer {
     const ctx = this.ctx;
     const worldSize = state.worldSize;
 
+    this.ensureForestSpots(worldSize);
+
     const baseGradient = ctx.createLinearGradient(0, 0, worldSize.x, worldSize.y);
     baseGradient.addColorStop(0, '#0f1a0f');
     baseGradient.addColorStop(1, '#0b120c');
     ctx.fillStyle = baseGradient;
     ctx.fillRect(0, 0, worldSize.x, worldSize.y);
 
-    // Dappled forest shading
+    // Dappled forest shading (pre-generated to avoid flashing between frames)
     ctx.globalAlpha = 0.18;
-    for (let i = 0; i < 160; i++) {
-      const radius = 60 + Math.random() * 140;
-      const x = Math.random() * worldSize.x;
-      const y = Math.random() * worldSize.y;
-      const spot = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
-      spot.addColorStop(0, 'rgba(40,70,40,0.6)');
-      spot.addColorStop(1, 'rgba(20,30,20,0)');
+    for (const spotDef of this.forestSpots) {
+      const spot = ctx.createRadialGradient(
+        spotDef.x,
+        spotDef.y,
+        spotDef.radius * 0.2,
+        spotDef.x,
+        spotDef.y,
+        spotDef.radius
+      );
+      spot.addColorStop(0, spotDef.inner);
+      spot.addColorStop(1, spotDef.outer);
       ctx.fillStyle = spot;
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.arc(spotDef.x, spotDef.y, spotDef.radius, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -525,6 +533,29 @@ export class Renderer {
     ctx.fillStyle = '#fff';
     ctx.font = '28px sans-serif';
     ctx.fillText(`Survived ${state.waveNumber} waves`, this.canvas.width / 2, this.canvas.height / 2 + 60);
+  }
+
+  private ensureForestSpots(worldSize: Vec2): void {
+    if (
+      this.forestSpots.length > 0 &&
+      this.forestSpotsSize &&
+      this.forestSpotsSize.x === worldSize.x &&
+      this.forestSpotsSize.y === worldSize.y
+    ) {
+      return;
+    }
+
+    this.forestSpotsSize = { ...worldSize };
+    this.forestSpots = Array.from({ length: 160 }, () => {
+      const radius = 60 + Math.random() * 140;
+      return {
+        radius,
+        x: Math.random() * worldSize.x,
+        y: Math.random() * worldSize.y,
+        inner: 'rgba(40,70,40,0.6)',
+        outer: 'rgba(20,30,20,0)'
+      };
+    });
   }
 
   private lightenColor(color: string, amount: number): string {
