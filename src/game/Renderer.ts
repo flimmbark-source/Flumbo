@@ -107,26 +107,70 @@ export class Renderer {
 
   private drawGround(state: GameState): void {
     const ctx = this.ctx;
-    const gridSize = 100;
     const worldSize = state.worldSize;
 
-    // Draw grid pattern
-    ctx.strokeStyle = '#2a2a2a';
-    ctx.lineWidth = 1;
+    const baseGradient = ctx.createLinearGradient(0, 0, worldSize.x, worldSize.y);
+    baseGradient.addColorStop(0, '#0f1a0f');
+    baseGradient.addColorStop(1, '#0b120c');
+    ctx.fillStyle = baseGradient;
+    ctx.fillRect(0, 0, worldSize.x, worldSize.y);
 
-    for (let x = 0; x < worldSize.x; x += gridSize) {
+    // Dappled forest shading
+    ctx.globalAlpha = 0.18;
+    for (let i = 0; i < 160; i++) {
+      const radius = 60 + Math.random() * 140;
+      const x = Math.random() * worldSize.x;
+      const y = Math.random() * worldSize.y;
+      const spot = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius);
+      spot.addColorStop(0, 'rgba(40,70,40,0.6)');
+      spot.addColorStop(1, 'rgba(20,30,20,0)');
+      ctx.fillStyle = spot;
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, worldSize.y);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Paths and clearings
+    ctx.save();
+    ctx.strokeStyle = '#3b4f3b';
+    ctx.lineCap = 'round';
+    for (const path of state.forestPaths) {
+      const grad = ctx.createLinearGradient(path.from.x, path.from.y, path.to.x, path.to.y);
+      grad.addColorStop(0, '#2f3f2f');
+      grad.addColorStop(1, '#3d5238');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = path.width;
+      ctx.beginPath();
+      ctx.moveTo(path.from.x, path.from.y);
+      ctx.lineTo(path.to.x, path.to.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(200,230,160,0.25)';
+      ctx.lineWidth = path.width * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(path.from.x, path.from.y);
+      ctx.lineTo(path.to.x, path.to.y);
       ctx.stroke();
     }
 
-    for (let y = 0; y < worldSize.y; y += gridSize) {
+    for (const clearing of state.clearings) {
+      const gradient = ctx.createRadialGradient(
+        clearing.center.x,
+        clearing.center.y,
+        clearing.radius * 0.3,
+        clearing.center.x,
+        clearing.center.y,
+        clearing.radius + clearing.softness
+      );
+      gradient.addColorStop(0, 'rgba(90,110,60,0.5)');
+      gradient.addColorStop(1, 'rgba(30,40,20,0)');
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(worldSize.x, y);
-      ctx.stroke();
+      ctx.arc(clearing.center.x, clearing.center.y, clearing.radius + clearing.softness, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.restore();
   }
 
   private drawResourceNode(node: any): void {

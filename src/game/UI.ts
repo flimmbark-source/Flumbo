@@ -42,14 +42,17 @@ export class UI {
           </div>
 
           <!-- Phase Timer -->
-          <div style="background: linear-gradient(135deg, ${state.phase === 'DAY' ? 'rgba(255,200,0,0.2)' : 'rgba(100,100,255,0.2)'}, rgba(0,0,0,0.9)); padding: 12px 20px; border-radius: 8px; border: 2px solid ${state.phase === 'DAY' ? '#ffd700' : '#4488ff'}; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-            <div style="font-size: 22px; font-weight: bold; color: ${state.phase === 'DAY' ? '#ffd700' : '#88aaff'}; text-align: center;">
-              ${state.phase === 'DAY' ? '☀️ DAY' : '🌙 NIGHT'}
+          <div style="background: linear-gradient(135deg, ${state.awaitingTownPlacement ? 'rgba(80,160,255,0.25)' : state.phase === 'DAY' ? 'rgba(255,200,0,0.2)' : 'rgba(100,100,255,0.2)'}, rgba(0,0,0,0.9)); padding: 12px 20px; border-radius: 8px; border: 2px solid ${state.awaitingTownPlacement ? '#66b5ff' : state.phase === 'DAY' ? '#ffd700' : '#4488ff'}; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <div style="font-size: 22px; font-weight: bold; color: ${state.awaitingTownPlacement ? '#9fd0ff' : state.phase === 'DAY' ? '#ffd700' : '#88aaff'}; text-align: center;">
+              ${state.awaitingTownPlacement ? '⏳ PLACEMENT' : state.phase === 'DAY' ? '☀️ DAY' : '🌙 NIGHT'}
             </div>
             <div style="font-size: 16px; text-align: center; margin-top: 4px; color: #fff;">
-              ${Math.ceil(state.phaseTimer)}s
+              ${state.awaitingTownPlacement ? 'Click to place your Town Hall' : `${Math.ceil(state.phaseTimer)}s`}
             </div>
-            ${state.phase === 'NIGHT' ? `<div style="font-size: 14px; text-align: center; margin-top: 4px; color: #f88;">Wave ${state.waveNumber}</div>` : ''}
+            ${state.awaitingTownPlacement
+              ? `<div style=\"font-size: 13px; text-align: center; margin-top: 6px; color: #b5d8ff;\">Timer starts after placement</div>`
+              : state.phase === 'NIGHT' ? `<div style=\"font-size: 14px; text-align: center; margin-top: 4px; color: #f88;\">Wave ${state.waveNumber}</div>`
+              : ''}
           </div>
 
           <!-- Town Hall HP -->
@@ -67,6 +70,15 @@ export class UI {
 
         <!-- Selected Building Panel -->
         ${state.selectedBuilding ? this.renderBuildingPanel(state.selectedBuilding) : ''}
+
+        ${state.awaitingTownPlacement ? `
+          <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 16px 20px; border-radius: 10px; border: 2px solid #66b5ff; pointer-events: none; max-width: 420px; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.6);">
+            <div style="font-size: 22px; font-weight: bold; color: #9fd0ff; margin-bottom: 8px;">Place your Town Hall to begin</div>
+            <div style="font-size: 14px; color: #e5f2ff; line-height: 1.4;">
+              Find a meadow or a path intersection to claim as your base. The giant forest stays still until you pick a spot, and then the day timer starts counting down.
+            </div>
+          </div>
+        ` : ''}
 
         <!-- Inventory (Bottom Left) -->
         <div style="position: absolute; bottom: 8px; left: 8px; max-width: 500px; background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,30,0.95)); padding: 12px; border-radius: 8px; border: 2px solid #444; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
