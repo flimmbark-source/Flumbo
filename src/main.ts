@@ -44,6 +44,7 @@ class Game {
 
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.uiContainer = document.getElementById('uiContainer')!;
+    this.uiContainer.style.pointerEvents = 'none';
 
     // Set canvas size
     this.canvas.width = window.innerWidth;
