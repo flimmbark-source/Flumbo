@@ -594,21 +594,30 @@ export class GameEngine {
         }
       }
 
-      // Check collision with core
-      if (this.distance(enemy.position, core.position) < 60) {
-        core.hp -= def.damage;
-        this.state.enemies.splice(i, 1);
+      // Check collision with core (sustained attacks instead of one-and-done hits)
+      const coreDistance = this.distance(enemy.position, core.position);
+      if (coreDistance < 60) {
+        enemy.velocity.x = 0;
+        enemy.velocity.y = 0;
+        core.hp -= def.damage * deltaTime;
         continue;
       }
 
       // Check collision with buildings
+      let engagedWithBuilding = false;
       for (const building of this.state.buildings) {
         const buildingDef = buildingDefs[building.defId];
         if (this.distance(enemy.position, building.position) < buildingDef.radius + def.size) {
-          building.hp -= def.damage;
-          this.state.enemies.splice(i, 1);
+          enemy.velocity.x = 0;
+          enemy.velocity.y = 0;
+          building.hp -= def.damage * deltaTime;
+          engagedWithBuilding = true;
           break;
         }
+      }
+
+      if (engagedWithBuilding) {
+        continue;
       }
 
       if (enemy.hp <= 0) {

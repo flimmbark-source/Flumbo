@@ -273,6 +273,10 @@ export class UI {
           <div
             data-socket="${index}"
             data-building-id="${building.id}"
+            data-item-name="${def.name}"
+            data-item-desc="${def.description}"
+            data-item-icon="${def.icon}"
+            data-item-rarity="${def.rarity}"
             style="
               background: linear-gradient(135deg, #222, #111);
               border: 2px solid ${rarityColors[def.rarity]};
@@ -308,6 +312,34 @@ export class UI {
               <div style="flex: 1;">
                 <div style="font-weight: bold; color: ${rarityColors[def.rarity]}; font-size: 14px;">${def.name}</div>
                 <div style="font-size: 11px; color: #aaa; margin-top: 3px;">${def.description}</div>
+              </div>
+            </div>
+            <div
+              data-tooltip-box
+              style="
+                position: absolute;
+                left: 0;
+                top: 100%;
+                margin-top: 6px;
+                background: rgba(10, 10, 10, 0.95);
+                border: 1px solid ${rarityColors[def.rarity]};
+                border-radius: 6px;
+                padding: 10px 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+                min-width: 220px;
+                z-index: 10;
+                opacity: 0;
+                pointer-events: none;
+                transform: translateY(-4px);
+                transition: opacity 0.15s ease, transform 0.15s ease;
+              "
+            >
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-size: 26px;">${def.icon}</div>
+                <div>
+                  <div style="font-weight: bold; color: ${rarityColors[def.rarity]};">${def.name}</div>
+                  <div style="font-size: 11px; color: #ccc;">${def.description}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -439,6 +471,8 @@ export class UI {
         const itemId = item.getAttribute('data-item-id');
         if (itemId && e instanceof DragEvent && e.dataTransfer) {
           e.dataTransfer.setData('text/plain', itemId);
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.dropEffect = 'move';
         }
       });
     });
@@ -447,6 +481,9 @@ export class UI {
     sockets.forEach(socket => {
       socket.addEventListener('dragover', (e) => {
         e.preventDefault();
+        if (e instanceof DragEvent && e.dataTransfer) {
+          e.dataTransfer.dropEffect = 'move';
+        }
       });
 
       socket.addEventListener('drop', (e) => {
@@ -465,6 +502,24 @@ export class UI {
           }
         }
       });
+
+      const tooltip = socket.querySelector('[data-tooltip-box]') as HTMLElement | null;
+      if (tooltip) {
+        const showTooltip = () => {
+          tooltip.style.opacity = '1';
+          tooltip.style.pointerEvents = 'auto';
+          tooltip.style.transform = 'translateY(0)';
+        };
+        const hideTooltip = () => {
+          tooltip.style.opacity = '0';
+          tooltip.style.pointerEvents = 'none';
+          tooltip.style.transform = 'translateY(-4px)';
+        };
+
+        socket.addEventListener('mouseenter', showTooltip);
+        socket.addEventListener('mouseleave', hideTooltip);
+        hideTooltip();
+      }
     });
   }
 
