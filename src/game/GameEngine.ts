@@ -112,6 +112,14 @@ export class GameEngine {
   private updatePhaseTimer(deltaTime: number): void {
     this.state.phaseTimer -= deltaTime;
 
+    // Check if all enemies are killed during night - end night immediately
+    if (this.state.phase === 'NIGHT' && this.state.enemies.length === 0 && this.state.phaseTimer > 0) {
+      console.log('🌙 → ☀️ All enemies defeated! Transitioning NIGHT to DAY early');
+      this.state.phase = 'DAY';
+      this.state.phaseTimer = this.state.dayDuration;
+      return;
+    }
+
     if (this.state.phaseTimer <= 0) {
       if (this.state.phase === 'DAY') {
         console.log('☀️ → 🌙 Transitioning DAY to NIGHT');
@@ -156,27 +164,52 @@ export class GameEngine {
     });
 
     for (let i = 0; i < baseCount; i++) {
-      let position: Vec2;
+      let position: Vec2 | null = null;
+      let attempts = 0;
+      const maxAttempts = 20;
 
-      if (edgeClearings.length > 0) {
-        // Spawn in a random edge clearing
-        const clearing = edgeClearings[Math.floor(Math.random() * edgeClearings.length)];
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * clearing.radius * 0.7; // Spawn within clearing
-        position = {
-          x: clearing.center.x + Math.cos(angle) * radius,
-          y: clearing.center.y + Math.sin(angle) * radius
-        };
-      } else {
-        // Fallback: spawn slightly inward from edges to avoid dense forest
-        const side = Math.floor(Math.random() * 4);
-        const inset = 70; // Spawn 70 units inward from edge
-        switch (side) {
-          case 0: position = { x: Math.random() * worldSize.x, y: inset }; break;
-          case 1: position = { x: worldSize.x - inset, y: Math.random() * worldSize.y }; break;
-          case 2: position = { x: Math.random() * worldSize.x, y: worldSize.y - inset }; break;
-          default: position = { x: inset, y: Math.random() * worldSize.y };
+      // Try to find a valid spawn position (not inside obstacles)
+      while (!position && attempts < maxAttempts) {
+        attempts++;
+        let candidatePos: Vec2;
+
+        if (edgeClearings.length > 0) {
+          // Spawn in a random edge clearing
+          const clearing = edgeClearings[Math.floor(Math.random() * edgeClearings.length)];
+          const angle = Math.random() * Math.PI * 2;
+          const radius = Math.random() * clearing.radius * 0.7; // Spawn within clearing
+          candidatePos = {
+            x: clearing.center.x + Math.cos(angle) * radius,
+            y: clearing.center.y + Math.sin(angle) * radius
+          };
+        } else {
+          // Fallback: spawn slightly inward from edges to avoid dense forest
+          const side = Math.floor(Math.random() * 4);
+          const inset = 70; // Spawn 70 units inward from edge
+          switch (side) {
+            case 0: candidatePos = { x: Math.random() * worldSize.x, y: inset }; break;
+            case 1: candidatePos = { x: worldSize.x - inset, y: Math.random() * worldSize.y }; break;
+            case 2: candidatePos = { x: Math.random() * worldSize.x, y: worldSize.y - inset }; break;
+            default: candidatePos = { x: inset, y: Math.random() * worldSize.y };
+          }
         }
+
+        // Determine enemy type first to check collision with correct size
+        let defId = 'goblin';
+        if (wave >= 3 && Math.random() < 0.3) defId = 'orc';
+        if (wave >= 5 && Math.random() < 0.2) defId = 'troll';
+        const def = enemyDefs[defId];
+
+        // Validate position is not inside obstacles
+        if (this.canMoveTo(candidatePos, def.size)) {
+          position = candidatePos;
+        }
+      }
+
+      // If we couldn't find a valid position after max attempts, skip this enemy
+      if (!position) {
+        console.warn(`Could not find valid spawn position for enemy ${i}`);
+        continue;
       }
 
       let defId = 'goblin';

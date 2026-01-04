@@ -80,7 +80,7 @@ class Game {
       // Update placement preview
       if (this.engine.state.awaitingTownPlacement) {
         this.placementPreview = this.renderer.screenToWorld(this.mousePos, this.engine.state.camera);
-      } else if (this.engine.state.buildMode && this.engine.state.phase === 'DAY') {
+      } else if (this.engine.state.buildMode) {
         this.placementPreview = this.renderer.screenToWorld(this.mousePos, this.engine.state.camera);
       } else {
         this.placementPreview = null;
