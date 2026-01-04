@@ -1,9 +1,9 @@
 import {
-  GameState, Building, Enemy, Vec2,
+  GameState, Building, Enemy, Vec2, ResourceCost, AllyUnit, ResourceNode,
   HealEvent, SpawnUnitEvent, ProjectileEvent, ApplyStatusEvent
 } from './types';
 import { buildingDefs } from './data/buildings';
-import { enemyDefs, guardUnitDef } from './data/enemies';
+import { enemyDefs, unitDefs } from './data/enemies';
 import { MapGenerator } from './systems/MapGenerator';
 import { LootSystem } from './systems/LootSystem';
 import { EffectResolver } from './systems/EffectResolver';
@@ -23,27 +23,36 @@ export class GameEngine {
     this.effectResolver = new EffectResolver();
     this.emitterSystem = new EmitterSystem();
 
-    const worldSize: Vec2 = { x: 1600, y: 1200 };
+    const worldSize: Vec2 = { x: 2000, y: 1500 };
 
-    // Create town core
-    const townCore: Building = {
-      id: 'core_0',
-      defId: 'townCore',
+    // Create Town Hall (RTS core building)
+    const townHall: Building = {
+      id: 'building_0',
+      defId: 'townHall',
       position: { x: worldSize.x / 2, y: worldSize.y / 2 },
-      hp: 1000,
-      maxHp: 1000,
+      hp: 2000,
+      maxHp: 2000,
       sockets: [null, null],
-      emitters: []
+      emitters: [],
+      constructionProgress: 1.0
     };
+
+    this.emitterSystem.rebuildEmitters(townHall, buildingDefs.townHall.baseEmitters);
 
     this.state = {
       phase: 'DAY',
-      phaseTimer: 60,
-      dayDuration: 60,
+      phaseTimer: 90,
+      dayDuration: 90,
       nightDuration: 60,
       waveNumber: 0,
 
-      townCore,
+      resources: {
+        wood: 200,
+        ore: 150,
+        gold: 100
+      },
+
+      townCore: townHall,
       buildings: [],
       enemies: [],
       allyUnits: [],
@@ -53,6 +62,8 @@ export class GameEngine {
 
       inventory: [],
       selectedBuilding: null,
+      selectedUnits: [],
+      buildMenuPosition: null,
       buildMode: null,
 
       camera: { x: 0, y: 0 },
@@ -83,6 +94,9 @@ export class GameEngine {
     this.updateAllyUnits(deltaTime);
     this.updateProjectiles(deltaTime);
 
+    // Update resource nodes (remove depleted)
+    this.cleanupDepletedNodes();
+
     // Check win/loss
     if (this.state.townCore.hp <= 0) {
       this.state.gameOver = true;
@@ -95,16 +109,13 @@ export class GameEngine {
 
     if (this.state.phaseTimer <= 0) {
       if (this.state.phase === 'DAY') {
-        // Switch to night
         this.state.phase = 'NIGHT';
         this.state.phaseTimer = this.state.nightDuration;
         this.state.waveNumber++;
         this.spawnWave();
       } else {
-        // Switch to day
         this.state.phase = 'DAY';
         this.state.phaseTimer = this.state.dayDuration;
-        // Clear remaining enemies
         this.state.enemies = [];
       }
     }
@@ -113,8 +124,6 @@ export class GameEngine {
   private spawnWave(): void {
     const wave = this.state.waveNumber;
     const worldSize = this.state.worldSize;
-
-    // Spawn enemies from edges
     const baseCount = 5 + wave * 3;
 
     for (let i = 0; i < baseCount; i++) {
@@ -122,20 +131,12 @@ export class GameEngine {
       let position: Vec2;
 
       switch (side) {
-        case 0: // Top
-          position = { x: Math.random() * worldSize.x, y: 0 };
-          break;
-        case 1: // Right
-          position = { x: worldSize.x, y: Math.random() * worldSize.y };
-          break;
-        case 2: // Bottom
-          position = { x: Math.random() * worldSize.x, y: worldSize.y };
-          break;
-        default: // Left
-          position = { x: 0, y: Math.random() * worldSize.y };
+        case 0: position = { x: Math.random() * worldSize.x, y: 0 }; break;
+        case 1: position = { x: worldSize.x, y: Math.random() * worldSize.y }; break;
+        case 2: position = { x: Math.random() * worldSize.x, y: worldSize.y }; break;
+        default: position = { x: 0, y: Math.random() * worldSize.y };
       }
 
-      // Choose enemy type based on wave
       let defId = 'goblin';
       if (wave >= 3 && Math.random() < 0.3) defId = 'orc';
       if (wave >= 5 && Math.random() < 0.2) defId = 'troll';
@@ -169,6 +170,7 @@ export class GameEngine {
 
     for (const building of allBuildings) {
       if (building.hp <= 0) continue;
+      if (building.constructionProgress && building.constructionProgress < 1.0) continue;
 
       const triggered = this.emitterSystem.getTriggeredEmitters(building, this.state.time);
 
@@ -223,7 +225,7 @@ export class GameEngine {
     } else if (template.eventType === 'spawnUnit') {
       const event: SpawnUnitEvent = {
         type: 'spawnUnit',
-        unitDefId: params.unitDefId || 'guard',
+        unitDefId: params.unitDefId || 'worker',
         stats: {},
         tags: [],
         sourceEntityId: building.id
@@ -236,7 +238,6 @@ export class GameEngine {
         }
       }
     } else if (template.eventType === 'applyStatus') {
-      // Apply to all enemies in radius
       const enemies = this.findEnemiesInRadius(building.position, params.radius || 100);
       for (const enemy of enemies) {
         const event: ApplyStatusEvent = {
@@ -316,7 +317,7 @@ export class GameEngine {
     this.state.projectiles.push({
       id: `proj_${this.idCounter++}`,
       position: { ...sourceBuilding.position },
-      velocity: { x: dir.x * 300, y: dir.y * 300 },
+      velocity: { x: dir.x * 400, y: dir.y * 400 },
       damage: event.stats.damage || 10,
       sourceEntityId: event.sourceEntityId,
       tags: event.tags,
@@ -335,34 +336,50 @@ export class GameEngine {
   }
 
   private spawnUnit(event: SpawnUnitEvent, building: Building): void {
+    const unitDef = unitDefs[event.unitDefId];
+    if (!unitDef) return;
+
     const bonusHp = event.stats.bonusHp || 0;
     let bonusSpeed = event.stats.bonusSpeed || 0;
 
-    // Apply tag-based bonuses
     if (event.tags.includes('swift')) {
       bonusSpeed += 20;
     }
 
     const offset = Math.random() * Math.PI * 2;
-    const distance = 40;
+    const distance = 50;
 
-    this.state.allyUnits.push({
+    const newUnit: AllyUnit = {
       id: `unit_${this.idCounter++}`,
       defId: event.unitDefId,
       position: {
         x: building.position.x + Math.cos(offset) * distance,
         y: building.position.y + Math.sin(offset) * distance
       },
-      hp: guardUnitDef.maxHp + bonusHp,
-      maxHp: guardUnitDef.maxHp + bonusHp,
-      speed: guardUnitDef.speed + bonusSpeed,
-      damage: guardUnitDef.damage,
-      attackCooldown: guardUnitDef.attackCooldown,
+      hp: unitDef.maxHp + bonusHp,
+      maxHp: unitDef.maxHp + bonusHp,
+      speed: unitDef.speed + bonusSpeed,
+      damage: unitDef.damage,
+      attackCooldown: unitDef.attackCooldown,
       lastAttack: 0,
-      size: guardUnitDef.size,
+      size: unitDef.size,
       tags: event.tags,
-      sourceBuilding: building.id
-    });
+      sourceBuilding: building.id,
+      role: unitDef.role
+    };
+
+    // Initialize worker gathering state
+    if (unitDef.role === 'worker' && unitDef.gatherCapacity) {
+      newUnit.gathering = {
+        targetNodeId: '',
+        resourceType: 'tree',
+        amount: 0,
+        maxCapacity: unitDef.gatherCapacity,
+        returningToDepot: false
+      };
+    }
+
+    this.state.allyUnits.push(newUnit);
   }
 
   private applyStatus(event: ApplyStatusEvent, enemy: Enemy): void {
@@ -426,7 +443,7 @@ export class GameEngine {
       enemy.position.y += enemy.velocity.y * deltaTime;
 
       // Check collision with core
-      if (this.distance(enemy.position, core.position) < 50) {
+      if (this.distance(enemy.position, core.position) < 60) {
         core.hp -= def.damage;
         this.state.enemies.splice(i, 1);
         continue;
@@ -442,7 +459,6 @@ export class GameEngine {
         }
       }
 
-      // Remove dead
       if (enemy.hp <= 0) {
         this.onEnemyDeath(enemy);
         this.state.enemies.splice(i, 1);
@@ -453,8 +469,21 @@ export class GameEngine {
   private updateAllyUnits(deltaTime: number): void {
     for (let i = this.state.allyUnits.length - 1; i >= 0; i--) {
       const unit = this.state.allyUnits[i];
+      const unitDef = unitDefs[unit.defId];
 
-      // Find nearest enemy
+      // Worker-specific AI
+      if (unit.role === 'worker' && unit.gathering) {
+        this.updateWorkerAI(unit, unitDef, deltaTime);
+        continue;
+      }
+
+      // Healer-specific AI
+      if (unit.role === 'support') {
+        this.updateHealerAI(unit, unitDef, deltaTime);
+        continue;
+      }
+
+      // Fighter AI - Find nearest enemy and attack
       let nearest: Enemy | null = null;
       let minDist = Infinity;
 
@@ -467,8 +496,7 @@ export class GameEngine {
       }
 
       if (nearest) {
-        // Move toward enemy
-        if (minDist > guardUnitDef.attackRange) {
+        if (minDist > unitDef.attackRange) {
           const dir = this.normalize({
             x: nearest.position.x - unit.position.x,
             y: nearest.position.y - unit.position.y
@@ -477,7 +505,6 @@ export class GameEngine {
           unit.position.x += dir.x * unit.speed * deltaTime;
           unit.position.y += dir.y * unit.speed * deltaTime;
         } else {
-          // Attack
           const timeSinceAttack = this.state.time - unit.lastAttack;
           if (timeSinceAttack >= unit.attackCooldown) {
             nearest.hp -= unit.damage;
@@ -486,11 +513,169 @@ export class GameEngine {
         }
       }
 
-      // Remove dead units
       if (unit.hp <= 0) {
         this.state.allyUnits.splice(i, 1);
       }
     }
+  }
+
+  private updateWorkerAI(unit: AllyUnit, unitDef: any, deltaTime: number): void {
+    if (!unit.gathering) return;
+
+    // If not assigned, find nearest resource node
+    if (!unit.gathering.targetNodeId) {
+      const nearestNode = this.findNearestResourceNode(unit.position);
+      if (nearestNode) {
+        unit.gathering.targetNodeId = nearestNode.id;
+        unit.gathering.resourceType = nearestNode.type === 'tree' ? 'wood' : 'ore';
+        unit.gathering.returningToDepot = false;
+      }
+      return;
+    }
+
+    // If returning to depot
+    if (unit.gathering.returningToDepot) {
+      const depot = this.findNearestDepot(unit.position);
+      if (depot) {
+        const dist = this.distance(unit.position, depot.position);
+
+        if (dist > 50) {
+          const dir = this.normalize({
+            x: depot.position.x - unit.position.x,
+            y: depot.position.y - unit.position.y
+          });
+          unit.position.x += dir.x * unit.speed * deltaTime;
+          unit.position.y += dir.y * unit.speed * deltaTime;
+        } else {
+          // Deposit resources
+          if (unit.gathering.resourceType === 'wood') {
+            this.state.resources.wood += unit.gathering.amount;
+          } else {
+            this.state.resources.ore += unit.gathering.amount;
+          }
+          unit.gathering.amount = 0;
+          unit.gathering.returningToDepot = false;
+          unit.gathering.targetNodeId = '';
+        }
+      }
+      return;
+    }
+
+    // Moving to resource node
+    const node = this.state.resourceNodes.find(n => n.id === unit.gathering!.targetNodeId);
+    if (!node || node.remainingResources <= 0) {
+      unit.gathering.targetNodeId = '';
+      return;
+    }
+
+    const dist = this.distance(unit.position, node.position);
+
+    if (dist > 40) {
+      // Move toward node
+      const dir = this.normalize({
+        x: node.position.x - unit.position.x,
+        y: node.position.y - unit.position.y
+      });
+      unit.position.x += dir.x * unit.speed * deltaTime;
+      unit.position.y += dir.y * unit.speed * deltaTime;
+    } else {
+      // Gather resources
+      if (unit.gathering.amount < unit.gathering.maxCapacity && node.remainingResources > 0) {
+        const gatherAmount = (unitDef.gatherRate || 10) * deltaTime;
+        const actualGather = Math.min(gatherAmount,
+          unit.gathering.maxCapacity - unit.gathering.amount,
+          node.remainingResources
+        );
+
+        unit.gathering.amount += actualGather;
+        node.remainingResources -= actualGather;
+
+        // If full, return to depot
+        if (unit.gathering.amount >= unit.gathering.maxCapacity) {
+          unit.gathering.returningToDepot = true;
+        }
+      } else if (unit.gathering.amount > 0) {
+        unit.gathering.returningToDepot = true;
+      }
+    }
+  }
+
+  private updateHealerAI(unit: AllyUnit, unitDef: any, deltaTime: number): void {
+    // Find lowest HP ally
+    let target: AllyUnit | null = null;
+    let lowestHpPercent = 1;
+
+    for (const ally of this.state.allyUnits) {
+      if (ally.id === unit.id) continue;
+      const hpPercent = ally.hp / ally.maxHp;
+      if (hpPercent < lowestHpPercent && hpPercent < 1) {
+        const dist = this.distance(unit.position, ally.position);
+        if (dist <= unitDef.attackRange * 1.5) {
+          lowestHpPercent = hpPercent;
+          target = ally;
+        }
+      }
+    }
+
+    if (target) {
+      const dist = this.distance(unit.position, target.position);
+
+      if (dist > unitDef.attackRange) {
+        const dir = this.normalize({
+          x: target.position.x - unit.position.x,
+          y: target.position.y - unit.position.y
+        });
+        unit.position.x += dir.x * unit.speed * deltaTime;
+        unit.position.y += dir.y * unit.speed * deltaTime;
+      } else {
+        const timeSinceHeal = this.state.time - unit.lastAttack;
+        if (timeSinceHeal >= unit.attackCooldown) {
+          target.hp = Math.min(target.hp + 25, target.maxHp);
+          unit.lastAttack = this.state.time;
+        }
+      }
+    }
+  }
+
+  private findNearestResourceNode(position: Vec2): ResourceNode | null {
+    let nearest: ResourceNode | null = null;
+    let minDist = Infinity;
+
+    for (const node of this.state.resourceNodes) {
+      if (node.remainingResources <= 0) continue;
+      const dist = this.distance(position, node.position);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = node;
+      }
+    }
+
+    return nearest;
+  }
+
+  private findNearestDepot(position: Vec2): Building | null {
+    const depots = [this.state.townCore, ...this.state.buildings.filter(b =>
+      b.defId === 'townHall' || b.defId === 'storageHut'
+    )];
+
+    let nearest: Building | null = null;
+    let minDist = Infinity;
+
+    for (const depot of depots) {
+      const dist = this.distance(position, depot.position);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = depot;
+      }
+    }
+
+    return nearest;
+  }
+
+  private cleanupDepletedNodes(): void {
+    this.state.resourceNodes = this.state.resourceNodes.filter(
+      node => node.remainingResources > 0
+    );
   }
 
   private updateProjectiles(deltaTime: number): void {
@@ -501,7 +686,6 @@ export class GameEngine {
       proj.position.y += proj.velocity.y * deltaTime;
       proj.lifetime -= deltaTime;
 
-      // Check collision with enemies
       for (const enemy of this.state.enemies) {
         if (proj.hitTargets.has(enemy.id)) continue;
 
@@ -510,7 +694,6 @@ export class GameEngine {
           enemy.hp -= proj.damage;
           proj.hitTargets.add(enemy.id);
 
-          // Check for pierce
           if (proj.pierce <= 0) {
             this.state.projectiles.splice(i, 1);
             break;
@@ -520,7 +703,6 @@ export class GameEngine {
         }
       }
 
-      // Remove if out of bounds or expired
       if (proj.lifetime <= 0 ||
           proj.position.x < 0 || proj.position.x > this.state.worldSize.x ||
           proj.position.y < 0 || proj.position.y > this.state.worldSize.y) {
@@ -539,18 +721,24 @@ export class GameEngine {
         this.state.lootDrops.push(drop);
       }
     }
+
+    // Award gold for kills
+    this.state.resources.gold += Math.floor(5 + this.state.waveNumber * 2);
   }
 
   placeBuilding(defId: string, position: Vec2): boolean {
     const def = buildingDefs[defId];
     if (!def) return false;
 
+    // Check resource costs
+    if (!this.canAfford(def.cost)) return false;
+
     // Check for overlaps
     const allBuildings = [this.state.townCore, ...this.state.buildings];
     for (const existing of allBuildings) {
       const existingDef = buildingDefs[existing.defId];
       const dist = this.distance(position, existing.position);
-      if (dist < def.radius + existingDef.radius) {
+      if (dist < def.radius + existingDef.radius + 10) {
         return false;
       }
     }
@@ -563,6 +751,9 @@ export class GameEngine {
       }
     }
 
+    // Deduct costs
+    this.deductResources(def.cost);
+
     const building: Building = {
       id: `building_${this.idCounter++}`,
       defId,
@@ -570,12 +761,27 @@ export class GameEngine {
       hp: def.maxHp,
       maxHp: def.maxHp,
       sockets: [null, null],
-      emitters: []
+      emitters: [],
+      constructionProgress: 1.0
     };
 
     this.emitterSystem.rebuildEmitters(building, def.baseEmitters);
     this.state.buildings.push(building);
     return true;
+  }
+
+  canAfford(cost: ResourceCost): boolean {
+    return (
+      (cost.wood || 0) <= this.state.resources.wood &&
+      (cost.ore || 0) <= this.state.resources.ore &&
+      (cost.gold || 0) <= this.state.resources.gold
+    );
+  }
+
+  private deductResources(cost: ResourceCost): void {
+    this.state.resources.wood -= (cost.wood || 0);
+    this.state.resources.ore -= (cost.ore || 0);
+    this.state.resources.gold -= (cost.gold || 0);
   }
 
   pickupLoot(dropId: string): void {
