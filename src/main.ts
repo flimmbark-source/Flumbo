@@ -178,55 +178,12 @@ class Game {
   };
 
   private update(deltaTime: number): void {
-    // Edge scrolling (RTS-style)
-    const edgeScrollZone = 20; // pixels from edge
-    const cameraSpeed = 400;
-
-    // Reset camera movement tracker
+    // No camera movement - map fits on screen
     this.cameraMovement = { x: 0, y: 0 };
 
-    // Check mouse position for edge scrolling
-    if (this.mousePos.x < edgeScrollZone) {
-      this.engine.state.camera.x -= cameraSpeed * deltaTime;
-      this.cameraMovement.x = -1;
-    }
-    if (this.mousePos.x > this.canvas.width - edgeScrollZone) {
-      this.engine.state.camera.x += cameraSpeed * deltaTime;
-      this.cameraMovement.x = 1;
-    }
-    if (this.mousePos.y < edgeScrollZone) {
-      this.engine.state.camera.y -= cameraSpeed * deltaTime;
-      this.cameraMovement.y = -1;
-    }
-    if (this.mousePos.y > this.canvas.height - edgeScrollZone) {
-      this.engine.state.camera.y += cameraSpeed * deltaTime;
-      this.cameraMovement.y = 1;
-    }
-
-    // WASD/Arrow key camera movement (still supported)
-    if (this.keys.has('w') || this.keys.has('arrowup')) {
-      this.engine.state.camera.y -= cameraSpeed * deltaTime;
-      this.cameraMovement.y = -1;
-    }
-    if (this.keys.has('s') || this.keys.has('arrowdown')) {
-      this.engine.state.camera.y += cameraSpeed * deltaTime;
-      this.cameraMovement.y = 1;
-    }
-    if (this.keys.has('a') || this.keys.has('arrowleft')) {
-      this.engine.state.camera.x -= cameraSpeed * deltaTime;
-      this.cameraMovement.x = -1;
-    }
-    if (this.keys.has('d') || this.keys.has('arrowright')) {
-      this.engine.state.camera.x += cameraSpeed * deltaTime;
-      this.cameraMovement.x = 1;
-    }
-
-    // Clamp camera (keep world centered if smaller than viewport)
-    const maxCameraX = Math.max(0, this.engine.state.worldSize.x - this.canvas.width);
-    const maxCameraY = Math.max(0, this.engine.state.worldSize.y - this.canvas.height);
-
-    this.engine.state.camera.x = Math.max(0, Math.min(maxCameraX, this.engine.state.camera.x));
-    this.engine.state.camera.y = Math.max(0, Math.min(maxCameraY, this.engine.state.camera.y));
+    // Keep camera centered on the world
+    this.engine.state.camera.x = Math.max(0, (this.engine.state.worldSize.x - this.canvas.width) / 2);
+    this.engine.state.camera.y = Math.max(0, (this.engine.state.worldSize.y - this.canvas.height) / 2);
 
     // Update game
     this.engine.update(deltaTime);
