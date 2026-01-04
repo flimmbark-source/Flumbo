@@ -114,11 +114,13 @@ export class GameEngine {
 
     if (this.state.phaseTimer <= 0) {
       if (this.state.phase === 'DAY') {
+        console.log('☀️ → 🌙 Transitioning DAY to NIGHT');
         this.state.phase = 'NIGHT';
         this.state.phaseTimer = this.state.nightDuration;
         this.state.waveNumber++;
         this.spawnWave();
       } else {
+        console.log('🌙 → ☀️ Transitioning NIGHT to DAY');
         this.state.phase = 'DAY';
         this.state.phaseTimer = this.state.dayDuration;
         this.state.enemies = [];
@@ -140,15 +142,41 @@ export class GameEngine {
     const worldSize = this.state.worldSize;
     const baseCount = 5 + wave * 3;
 
+    console.log(`🌙 Spawning wave ${wave} with ${baseCount} enemies`);
+
+    // Spawn enemies in clearings near map edges to avoid getting stuck in dense forest
+    const edgeClearings = this.state.clearings.filter(c => {
+      const edgeDist = Math.min(
+        c.center.x,
+        worldSize.x - c.center.x,
+        c.center.y,
+        worldSize.y - c.center.y
+      );
+      return edgeDist < 500; // Clearings within 500 units of any edge
+    });
+
     for (let i = 0; i < baseCount; i++) {
-      const side = Math.floor(Math.random() * 4);
       let position: Vec2;
 
-      switch (side) {
-        case 0: position = { x: Math.random() * worldSize.x, y: 0 }; break;
-        case 1: position = { x: worldSize.x, y: Math.random() * worldSize.y }; break;
-        case 2: position = { x: Math.random() * worldSize.x, y: worldSize.y }; break;
-        default: position = { x: 0, y: Math.random() * worldSize.y };
+      if (edgeClearings.length > 0) {
+        // Spawn in a random edge clearing
+        const clearing = edgeClearings[Math.floor(Math.random() * edgeClearings.length)];
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.random() * clearing.radius * 0.7; // Spawn within clearing
+        position = {
+          x: clearing.center.x + Math.cos(angle) * radius,
+          y: clearing.center.y + Math.sin(angle) * radius
+        };
+      } else {
+        // Fallback: spawn slightly inward from edges to avoid dense forest
+        const side = Math.floor(Math.random() * 4);
+        const inset = 150; // Spawn 150 units inward from edge
+        switch (side) {
+          case 0: position = { x: Math.random() * worldSize.x, y: inset }; break;
+          case 1: position = { x: worldSize.x - inset, y: Math.random() * worldSize.y }; break;
+          case 2: position = { x: Math.random() * worldSize.x, y: worldSize.y - inset }; break;
+          default: position = { x: inset, y: Math.random() * worldSize.y };
+        }
       }
 
       let defId = 'goblin';
@@ -166,6 +194,8 @@ export class GameEngine {
         statuses: []
       });
     }
+
+    console.log(`✅ Total enemies in state: ${this.state.enemies.length}`);
   }
 
   private applyCursedSkullDamage(deltaTime: number): void {
