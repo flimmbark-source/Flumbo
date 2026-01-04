@@ -29,7 +29,7 @@ export class GameEngine {
     const townHall: Building = {
       id: 'building_0',
       defId: 'townHall',
-      position: { x: worldSize.x / 2, y: worldSize.y / 2 },
+      position: { x: -9999, y: -9999 },
       hp: 2000,
       maxHp: 2000,
       sockets: [null, null],
@@ -39,12 +39,15 @@ export class GameEngine {
 
     this.emitterSystem.rebuildEmitters(townHall, buildingDefs.townHall.baseEmitters);
 
+    const map = this.mapGen.generateMap(worldSize);
+
     this.state = {
       phase: 'DAY',
       phaseTimer: 90,
       dayDuration: 90,
       nightDuration: 60,
       waveNumber: 0,
+      awaitingTownPlacement: true,
 
       resources: {
         wood: 200,
@@ -57,7 +60,9 @@ export class GameEngine {
       enemies: [],
       allyUnits: [],
       projectiles: [],
-      resourceNodes: this.mapGen.generateMap(worldSize),
+      resourceNodes: map.nodes,
+      forestPaths: map.paths,
+      clearings: map.clearings,
       lootDrops: [],
 
       inventory: [],
@@ -70,13 +75,13 @@ export class GameEngine {
       worldSize,
 
       time: 0,
-      running: true,
+      running: false,
       gameOver: false
     };
   }
 
   update(deltaTime: number): void {
-    if (!this.state.running || this.state.gameOver) return;
+    if (!this.state.running || this.state.gameOver || this.state.awaitingTownPlacement) return;
 
     this.state.time += deltaTime;
 
@@ -767,6 +772,37 @@ export class GameEngine {
 
     this.emitterSystem.rebuildEmitters(building, def.baseEmitters);
     this.state.buildings.push(building);
+    return true;
+  }
+
+  placeTownCore(position: Vec2): boolean {
+    if (!this.state.awaitingTownPlacement) return false;
+
+    const def = buildingDefs.townHall;
+    if (
+      position.x - def.radius < 0 || position.x + def.radius > this.state.worldSize.x ||
+      position.y - def.radius < 0 || position.y + def.radius > this.state.worldSize.y
+    ) {
+      return false;
+    }
+
+    for (const node of this.state.resourceNodes) {
+      const dist = this.distance(position, node.position);
+      if (dist < def.radius + node.size + 6) return false;
+    }
+
+    for (const building of this.state.buildings) {
+      const existingDef = buildingDefs[building.defId];
+      const dist = this.distance(position, building.position);
+      if (dist < def.radius + existingDef.radius + 6) return false;
+    }
+
+    this.state.townCore.position = { ...position };
+    this.state.awaitingTownPlacement = false;
+    this.state.running = true;
+    this.state.phaseTimer = this.state.dayDuration;
+    this.state.time = 0;
+    this.state.selectedBuilding = this.state.townCore;
     return true;
   }
 

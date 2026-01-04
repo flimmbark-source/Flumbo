@@ -2,6 +2,7 @@ import { GameEngine } from './game/GameEngine';
 import { Renderer } from './game/Renderer';
 import { UI } from './game/UI';
 import { Vec2 } from './game/types';
+import { buildingDefs } from './game/data/buildings';
 
 class Game {
   private engine: GameEngine;
@@ -75,7 +76,9 @@ class Game {
       };
 
       // Update placement preview
-      if (this.engine.state.buildMode && this.engine.state.phase === 'DAY') {
+      if (this.engine.state.awaitingTownPlacement) {
+        this.placementPreview = this.renderer.screenToWorld(this.mousePos, this.engine.state.camera);
+      } else if (this.engine.state.buildMode && this.engine.state.phase === 'DAY') {
         this.placementPreview = this.renderer.screenToWorld(this.mousePos, this.engine.state.camera);
       } else {
         this.placementPreview = null;
@@ -97,6 +100,16 @@ class Game {
 
   private handleClick(worldPos: Vec2): void {
     const state = this.engine.state;
+
+    if (state.awaitingTownPlacement) {
+      const placed = this.engine.placeTownCore(worldPos);
+      if (placed) {
+        this.centerCameraOn(worldPos);
+        this.placementPreview = null;
+        this.ui.render();
+      }
+      return;
+    }
 
     // Check loot pickup first
     for (const drop of state.lootDrops) {
@@ -219,10 +232,14 @@ class Game {
     this.renderer.render(this.engine.state);
 
     // Draw placement preview
-    if (this.placementPreview && this.engine.state.buildMode) {
+    const placementDef = this.engine.state.awaitingTownPlacement
+      ? buildingDefs.townHall
+      : this.engine.state.buildMode;
+
+    if (this.placementPreview && placementDef) {
       const ctx = this.canvas.getContext('2d')!;
       const camera = this.engine.state.camera;
-      const def = this.engine.state.buildMode;
+      const def = placementDef;
 
       ctx.save();
       ctx.translate(-camera.x, -camera.y);
@@ -250,6 +267,22 @@ class Game {
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId);
     }
+  }
+
+  private centerCameraOn(position: Vec2): void {
+    this.engine.state.camera = {
+      x: position.x - this.canvas.width / 2,
+      y: position.y - this.canvas.height / 2
+    };
+
+    this.engine.state.camera.x = Math.max(0, Math.min(
+      this.engine.state.worldSize.x - this.canvas.width,
+      this.engine.state.camera.x
+    ));
+    this.engine.state.camera.y = Math.max(0, Math.min(
+      this.engine.state.worldSize.y - this.canvas.height,
+      this.engine.state.camera.y
+    ));
   }
 }
 

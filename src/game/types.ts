@@ -8,6 +8,18 @@ export interface Vec2 {
   y: number;
 }
 
+export interface ForestPath {
+  from: Vec2;
+  to: Vec2;
+  width: number;
+}
+
+export interface Clearing {
+  center: Vec2;
+  radius: number;
+  softness: number;
+}
+
 // Event types for universal effect system
 export interface DamageEvent {
   type: 'damage';
@@ -268,6 +280,7 @@ export interface GameState {
   dayDuration: number;
   nightDuration: number;
   waveNumber: number;
+  awaitingTownPlacement: boolean;
 
   // RTS resources
   resources: Resources;
@@ -279,6 +292,8 @@ export interface GameState {
   projectiles: Projectile[];
   resourceNodes: ResourceNode[];
   lootDrops: LootDrop[];
+  forestPaths: ForestPath[];
+  clearings: Clearing[];
 
   inventory: Item[];
   selectedBuilding: Building | null;
