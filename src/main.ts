@@ -120,26 +120,29 @@ class Game {
         Math.pow(worldPos.y - building.position.y, 2)
       );
 
-      if (dist < 40) {
+      if (dist < 50) {
         state.selectedBuilding = building;
         state.buildMode = null;
+        state.buildMenuPosition = null;
         this.ui.render();
         return;
       }
     }
 
-    // Place building
-    if (state.buildMode && state.phase === 'DAY') {
+    // Place building if in build mode
+    if (state.buildMode) {
       const success = this.engine.placeBuilding(state.buildMode.id, worldPos);
       if (success) {
         state.buildMode = null;
+        state.buildMenuPosition = null;
         this.ui.render();
       }
       return;
     }
 
-    // Deselect
+    // RTS-style: clicking empty ground shows build menu
     state.selectedBuilding = null;
+    state.buildMenuPosition = { ...worldPos };
     this.ui.render();
   }
 
@@ -160,9 +163,25 @@ class Game {
   };
 
   private update(deltaTime: number): void {
-    // Handle camera movement
-    const cameraSpeed = 300;
+    // Edge scrolling (RTS-style)
+    const edgeScrollZone = 20; // pixels from edge
+    const cameraSpeed = 400;
 
+    // Check mouse position for edge scrolling
+    if (this.mousePos.x < edgeScrollZone) {
+      this.engine.state.camera.x -= cameraSpeed * deltaTime;
+    }
+    if (this.mousePos.x > this.canvas.width - edgeScrollZone) {
+      this.engine.state.camera.x += cameraSpeed * deltaTime;
+    }
+    if (this.mousePos.y < edgeScrollZone) {
+      this.engine.state.camera.y -= cameraSpeed * deltaTime;
+    }
+    if (this.mousePos.y > this.canvas.height - edgeScrollZone) {
+      this.engine.state.camera.y += cameraSpeed * deltaTime;
+    }
+
+    // WASD/Arrow key camera movement (still supported)
     if (this.keys.has('w') || this.keys.has('arrowup')) {
       this.engine.state.camera.y -= cameraSpeed * deltaTime;
     }
@@ -189,7 +208,7 @@ class Game {
     // Update game
     this.engine.update(deltaTime);
 
-    // Update UI on phase change
+    // Update UI on phase change or resource changes
     const phaseChanged = Math.floor(this.engine.state.phaseTimer) !== Math.floor(this.engine.state.phaseTimer - deltaTime);
     if (phaseChanged) {
       this.ui.render();
