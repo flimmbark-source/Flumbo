@@ -8,7 +8,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Vanguard Horn',
     rarity: 'epic',
     icon: '📯',
-    description: 'This building spawns a guard unit every 8 seconds',
+    description: 'EFFECT: Spawns a Guard unit every 8 seconds (adds new emitter)',
     modifiers: [{
       affectsEventTypes: [],
       operation: 'addEmitter',
@@ -30,7 +30,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Runestone of Sentries',
     rarity: 'rare',
     icon: '🔮',
-    description: 'This building fires an Arc Bolt every 2 seconds',
+    description: 'EFFECT: Fires Arc Bolt projectiles at enemies every 2 sec (12 damage, 180 range)',
     modifiers: [{
       affectsEventTypes: [],
       operation: 'addEmitter',
@@ -56,7 +56,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Sanctuary Idol',
     rarity: 'rare',
     icon: '🕯️',
-    description: 'This building heals nearby allies every 3 seconds',
+    description: 'EFFECT: Heals lowest HP ally every 3 sec (+15 HP, 120 range)',
     modifiers: [{
       affectsEventTypes: [],
       operation: 'addEmitter',
@@ -81,7 +81,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Dread Sigil',
     rarity: 'epic',
     icon: '💀',
-    description: 'This building applies Slow to nearby enemies every 2 seconds',
+    description: 'EFFECT: Slows all nearby enemies every 2 sec (50% slow for 3 sec, 100 range)',
     modifiers: [{
       affectsEventTypes: [],
       operation: 'addEmitter',
@@ -110,7 +110,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Serrated Ruby',
     rarity: 'common',
     icon: '💎',
-    description: 'Damage +8',
+    description: 'EFFECT: All damage from this building +8',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'addFlat',
@@ -123,7 +123,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Keen Topaz',
     rarity: 'common',
     icon: '🔶',
-    description: 'Crit chance +15%',
+    description: 'EFFECT: Critical hit chance +15%',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'addFlat',
@@ -136,7 +136,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Venom Emerald',
     rarity: 'uncommon',
     icon: '🟢',
-    description: 'Damage applies Poison for 4 seconds',
+    description: 'EFFECT: All damage applies Poison (10 damage/sec for 4 sec)',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'addStatusOnHit',
@@ -151,7 +151,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Chill Sapphire',
     rarity: 'uncommon',
     icon: '🔵',
-    description: 'Damage applies Slow for 2 seconds',
+    description: 'EFFECT: All damage applies Slow (50% slow for 2 sec)',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'addStatusOnHit',
@@ -166,7 +166,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Warding Obsidian',
     rarity: 'uncommon',
     icon: '⬛',
-    description: 'Spawned units gain +30 HP and armor tag',
+    description: 'EFFECT: All spawned units gain +30 max HP and Armored tag',
     modifiers: [{
       affectsEventTypes: ['spawnUnit'],
       operation: 'addFlat',
@@ -183,7 +183,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Chain Opal',
     rarity: 'rare',
     icon: '⚪',
-    description: 'Damage chains to 1 extra enemy',
+    description: 'EFFECT: All damage chains to +1 nearby enemy',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'chain',
@@ -196,7 +196,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Cursed Skull',
     rarity: 'rare',
     icon: '☠️',
-    description: 'Damage +50%, but building loses 2 HP/sec',
+    description: 'EFFECT: All damage +50%, but building loses 2 HP/sec',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'multiply',
@@ -209,7 +209,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Piercing Javelin',
     rarity: 'uncommon',
     icon: '🗡️',
-    description: 'Projectiles pierce +1 enemy',
+    description: 'EFFECT: All projectiles pierce through +1 enemy',
     modifiers: [{
       affectsEventTypes: ['projectile', 'damage'],
       operation: 'pierce',
@@ -222,7 +222,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Swiftness Feather',
     rarity: 'common',
     icon: '🪶',
-    description: 'Spawned units gain +20 speed',
+    description: 'EFFECT: All spawned units gain +20 movement speed',
     modifiers: [{
       affectsEventTypes: ['spawnUnit'],
       operation: 'addTag',
@@ -235,7 +235,7 @@ export const itemDefs: Record<string, ItemDef> = {
     name: 'Blazing Core',
     rarity: 'rare',
     icon: '🔥',
-    description: 'Damage +25% and converts to fire type',
+    description: 'EFFECT: All damage +25% and converts to Fire damage type',
     modifiers: [{
       affectsEventTypes: ['damage'],
       operation: 'multiply',
