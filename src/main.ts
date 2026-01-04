@@ -17,10 +17,16 @@ class Game {
   private placementPreview: Vec2 | null = null;
 
   constructor() {
-    this.setupDOM();
     this.engine = new GameEngine();
+    this.setupDOM();
     this.renderer = new Renderer(this.canvas);
     this.ui = new UI(this.uiContainer, this.engine);
+
+    // Center camera on town core (after engine is initialized)
+    this.engine.state.camera = {
+      x: this.engine.state.worldSize.x / 2 - this.canvas.width / 2,
+      y: this.engine.state.worldSize.y / 2 - this.canvas.height / 2
+    };
 
     this.setupInputHandlers();
     this.start();
@@ -42,12 +48,6 @@ class Game {
     // Set canvas size
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-
-    // Center camera on town core
-    this.engine.state.camera = {
-      x: this.engine.state.worldSize.x / 2 - this.canvas.width / 2,
-      y: this.engine.state.worldSize.y / 2 - this.canvas.height / 2
-    };
 
     // Handle resize
     window.addEventListener('resize', () => {
