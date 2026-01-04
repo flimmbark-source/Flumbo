@@ -221,15 +221,12 @@ class Game {
       this.cameraMovement.x = 1;
     }
 
-    // Clamp camera
-    this.engine.state.camera.x = Math.max(0, Math.min(
-      this.engine.state.worldSize.x - this.canvas.width,
-      this.engine.state.camera.x
-    ));
-    this.engine.state.camera.y = Math.max(0, Math.min(
-      this.engine.state.worldSize.y - this.canvas.height,
-      this.engine.state.camera.y
-    ));
+    // Clamp camera (keep world centered if smaller than viewport)
+    const maxCameraX = Math.max(0, this.engine.state.worldSize.x - this.canvas.width);
+    const maxCameraY = Math.max(0, this.engine.state.worldSize.y - this.canvas.height);
+
+    this.engine.state.camera.x = Math.max(0, Math.min(maxCameraX, this.engine.state.camera.x));
+    this.engine.state.camera.y = Math.max(0, Math.min(maxCameraY, this.engine.state.camera.y));
 
     // Update game
     this.engine.update(deltaTime);

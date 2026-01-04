@@ -24,30 +24,30 @@ export class MapGenerator {
     const center: Vec2 = { x: worldSize.x / 2, y: worldSize.y / 2 };
     const clearings: Clearing[] = [
       // Central clearing (larger)
-      { center, radius: 250, softness: 100 }
+      { center, radius: 120, softness: 50 }
     ];
 
-    // Create many small clearings scattered across the map
-    const clearingCount = 25;
+    // Create small clearings scattered across the map
+    const clearingCount = 12;
     for (let i = 0; i < clearingCount; i++) {
       const angle = (Math.PI * 2 * i) / clearingCount + this.random() * 0.5;
-      const distance = 300 + this.random() * 800;
+      const distance = 150 + this.random() * 300;
       const position: Vec2 = {
         x: center.x + Math.cos(angle) * distance,
         y: center.y + Math.sin(angle) * distance
       };
 
-      // Vary clearing sizes
-      const radius = 80 + this.random() * 120;
+      // Vary clearing sizes (smaller for single-screen map)
+      const radius = 40 + this.random() * 60;
       clearings.push({
         center: position,
         radius,
-        softness: 50 + this.random() * 40
+        softness: 25 + this.random() * 20
       });
     }
 
     // Additional random clearings for more variety
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 6; i++) {
       const position: Vec2 = {
         x: this.random() * worldSize.x,
         y: this.random() * worldSize.y
@@ -55,8 +55,8 @@ export class MapGenerator {
 
       clearings.push({
         center: position,
-        radius: 60 + this.random() * 80,
-        softness: 40 + this.random() * 30
+        radius: 30 + this.random() * 40,
+        softness: 20 + this.random() * 15
       });
     }
 
@@ -93,28 +93,28 @@ export class MapGenerator {
         if (!pathExists) {
           // Create winding path with slight curve
           const midpoint: Vec2 = {
-            x: (clearing.center.x + targetClearing.center.x) / 2 + (this.random() - 0.5) * 100,
-            y: (clearing.center.y + targetClearing.center.y) / 2 + (this.random() - 0.5) * 100
+            x: (clearing.center.x + targetClearing.center.x) / 2 + (this.random() - 0.5) * 50,
+            y: (clearing.center.y + targetClearing.center.y) / 2 + (this.random() - 0.5) * 50
           };
 
           // Add two segments to create a curve
           paths.push({
             from: clearing.center,
             to: midpoint,
-            width: 60 + this.random() * 80
+            width: 40 + this.random() * 40
           });
 
           paths.push({
             from: midpoint,
             to: targetClearing.center,
-            width: 60 + this.random() * 80
+            width: 40 + this.random() * 40
           });
         }
       }
     }
 
     // Add some straight paths from map edges to clearings (entry points)
-    const edgeEntryCount = 8;
+    const edgeEntryCount = 4;
     for (let i = 0; i < edgeEntryCount; i++) {
       const side = Math.floor(this.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
       let entryPoint: Vec2;
@@ -150,12 +150,12 @@ export class MapGenerator {
       paths.push({
         from: entryPoint,
         to: nearestClearing.center,
-        width: 80 + this.random() * 60
+        width: 50 + this.random() * 40
       });
     }
 
     // Dense forest generation using a jittered grid, leaving corridors and clearings open
-    const spacing = 55;
+    const spacing = 50;
     for (let x = spacing / 2; x < worldSize.x; x += spacing) {
       for (let y = spacing / 2; y < worldSize.y; y += spacing) {
         const pos: Vec2 = {

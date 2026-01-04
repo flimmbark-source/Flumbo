@@ -23,7 +23,7 @@ export class GameEngine {
     this.effectResolver = new EffectResolver();
     this.emitterSystem = new EmitterSystem();
 
-    const worldSize: Vec2 = { x: 4000, y: 3000 };
+    const worldSize: Vec2 = { x: 1600, y: 1000 };
 
     // Create Town Hall (RTS core building)
     const townHall: Building = {
@@ -152,7 +152,7 @@ export class GameEngine {
         c.center.y,
         worldSize.y - c.center.y
       );
-      return edgeDist < 500; // Clearings within 500 units of any edge
+      return edgeDist < 250; // Clearings within 250 units of any edge
     });
 
     for (let i = 0; i < baseCount; i++) {
@@ -170,7 +170,7 @@ export class GameEngine {
       } else {
         // Fallback: spawn slightly inward from edges to avoid dense forest
         const side = Math.floor(Math.random() * 4);
-        const inset = 150; // Spawn 150 units inward from edge
+        const inset = 80; // Spawn 80 units inward from edge
         switch (side) {
           case 0: position = { x: Math.random() * worldSize.x, y: inset }; break;
           case 1: position = { x: worldSize.x - inset, y: Math.random() * worldSize.y }; break;
