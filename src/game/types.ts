@@ -172,6 +172,7 @@ export interface BuildingDef {
   category: BuildingCategory;
   cost: ResourceCost;
   buildTime?: number;
+  populationBonus?: number;
 }
 
 export interface Building {
@@ -294,6 +295,9 @@ export interface GameState {
   lootDrops: LootDrop[];
   forestPaths: ForestPath[];
   clearings: Clearing[];
+
+  population: number;
+  populationCap: number;
 
   inventory: Item[];
   selectedBuilding: Building | null;

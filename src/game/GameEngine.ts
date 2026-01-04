@@ -55,6 +55,9 @@ export class GameEngine {
         gold: 100
       },
 
+      population: 0,
+      populationCap: buildingDefs.townHall.populationBonus || 0,
+
       townCore: townHall,
       buildings: [],
       enemies: [],
@@ -416,6 +419,10 @@ export class GameEngine {
     const unitDef = unitDefs[event.unitDefId];
     if (!unitDef) return;
 
+    if (this.state.population >= this.state.populationCap) {
+      return;
+    }
+
     const bonusHp = event.stats.bonusHp || 0;
     let bonusSpeed = event.stats.bonusSpeed || 0;
 
@@ -457,6 +464,7 @@ export class GameEngine {
     }
 
     this.state.allyUnits.push(newUnit);
+    this.state.population = this.state.allyUnits.length;
   }
 
   private applyStatus(event: ApplyStatusEvent, enemy: Enemy): void {
@@ -685,6 +693,8 @@ export class GameEngine {
         this.state.allyUnits.splice(i, 1);
       }
     }
+
+    this.state.population = this.state.allyUnits.length;
   }
 
   private updateWorkerAI(unit: AllyUnit, unitDef: any, deltaTime: number): void {
@@ -959,6 +969,7 @@ export class GameEngine {
 
     this.emitterSystem.rebuildEmitters(building, def.baseEmitters);
     this.state.buildings.push(building);
+    this.recalculatePopulationCap();
     return true;
   }
 
@@ -991,6 +1002,17 @@ export class GameEngine {
     this.state.time = 0;
     this.state.selectedBuilding = this.state.townCore;
     return true;
+  }
+
+  private recalculatePopulationCap(): void {
+    const baseCap = buildingDefs.townHall.populationBonus || 0;
+    const bonus = this.state.buildings.reduce((sum, b) => {
+      const def = buildingDefs[b.defId];
+      return sum + (def.populationBonus || 0);
+    }, 0);
+
+    this.state.populationCap = baseCap + bonus;
+    this.state.population = Math.min(this.state.population, this.state.populationCap);
   }
 
   canAfford(cost: ResourceCost): boolean {
