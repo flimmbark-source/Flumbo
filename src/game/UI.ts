@@ -10,6 +10,7 @@ export class UI {
   private container: HTMLElement;
   private engine: GameEngine;
   private tooltipEl: HTMLElement | null = null;
+  private activeTooltipItemId: string | null = null;
 
   constructor(container: HTMLElement, engine: GameEngine) {
     this.container = container;
@@ -19,8 +20,6 @@ export class UI {
 
   render(): void {
     const state = this.engine.state;
-
-    this.hideInventoryTooltip();
 
     this.container.innerHTML = `
       <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
@@ -125,6 +124,13 @@ export class UI {
         </div>
       </div>
     `;
+
+    if (this.activeTooltipItemId) {
+      const activeTarget = this.container.querySelector(`[data-item-id="${this.activeTooltipItemId}"]`);
+      if (!activeTarget) {
+        this.hideInventoryTooltip();
+      }
+    }
 
     this.attachEventListeners();
   }
@@ -317,34 +323,6 @@ export class UI {
                 <div style="font-size: 11px; color: #aaa; margin-top: 3px;">${def.description}</div>
               </div>
             </div>
-            <div
-              data-tooltip-box
-              style="
-                position: absolute;
-                left: 0;
-                top: 100%;
-                margin-top: 6px;
-                background: rgba(10, 10, 10, 0.95);
-                border: 1px solid ${rarityColors[def.rarity]};
-                border-radius: 6px;
-                padding: 10px 12px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-                min-width: 220px;
-                z-index: 10;
-                opacity: 0;
-                pointer-events: none;
-                transform: translateY(-4px);
-                transition: opacity 0.15s ease, transform 0.15s ease;
-              "
-            >
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="font-size: 26px;">${def.icon}</div>
-                <div>
-                  <div style="font-weight: bold; color: ${rarityColors[def.rarity]};">${def.name}</div>
-                  <div style="font-size: 11px; color: #ccc;">${def.description}</div>
-                </div>
-              </div>
-            </div>
           </div>
         `;
       } else {
@@ -481,10 +459,11 @@ export class UI {
 
       item.addEventListener('mouseenter', () => {
         const defId = item.getAttribute('data-item-def-id');
-        if (!defId) return;
+        const itemId = item.getAttribute('data-item-id');
+        if (!defId || !itemId) return;
         const def = itemDefs[defId];
         if (!def) return;
-        this.showInventoryTooltip(item as HTMLElement, def);
+        this.showInventoryTooltip(item as HTMLElement, def, itemId);
       });
 
       item.addEventListener('mouseleave', () => {
@@ -517,24 +496,6 @@ export class UI {
           }
         }
       });
-
-      const tooltip = socket.querySelector('[data-tooltip-box]') as HTMLElement | null;
-      if (tooltip) {
-        const showTooltip = () => {
-          tooltip.style.opacity = '1';
-          tooltip.style.pointerEvents = 'auto';
-          tooltip.style.transform = 'translateY(0)';
-        };
-        const hideTooltip = () => {
-          tooltip.style.opacity = '0';
-          tooltip.style.pointerEvents = 'none';
-          tooltip.style.transform = 'translateY(-4px)';
-        };
-
-        socket.addEventListener('mouseenter', showTooltip);
-        socket.addEventListener('mouseleave', hideTooltip);
-        hideTooltip();
-      }
     });
   }
 
@@ -569,7 +530,7 @@ export class UI {
     return this.tooltipEl;
   }
 
-  private showInventoryTooltip(target: HTMLElement, itemDef: ItemDef): void {
+  private showInventoryTooltip(target: HTMLElement, itemDef: ItemDef, itemId: string): void {
     const rarityColors: Record<string, string> = {
       common: '#fff',
       uncommon: '#0f0',
@@ -577,6 +538,7 @@ export class UI {
       epic: '#a0f'
     };
 
+    this.activeTooltipItemId = itemId;
     const tooltip = this.ensureTooltipElement();
     tooltip.innerHTML = `
       <div style="display: flex; gap: 10px; align-items: center;">
@@ -609,6 +571,7 @@ export class UI {
   }
 
   private hideInventoryTooltip(): void {
+    this.activeTooltipItemId = null;
     if (this.tooltipEl) {
       this.tooltipEl.style.opacity = '0';
       this.tooltipEl.style.transform = 'translateY(-4px)';
