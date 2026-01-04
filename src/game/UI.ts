@@ -1,8 +1,11 @@
 import { Building, Item } from './types';
-import { buildingDefs } from './data/buildings';
+import { buildingDefs, getBuildingsByCategory } from './data/buildings';
 import { itemDefs } from './data/items';
 import { GameEngine } from './GameEngine';
 
+/**
+ * RTS-style UI with click-to-build menu
+ */
 export class UI {
   private container: HTMLElement;
   private engine: GameEngine;
@@ -17,58 +20,70 @@ export class UI {
     const state = this.engine.state;
 
     this.container.innerHTML = `
-      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;">
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+
         <!-- Top HUD -->
-        <div style="position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; pointer-events: auto;">
-          <div style="background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 2px solid #444;">
-            <div style="font-size: 24px; font-weight: bold; color: ${state.phase === 'DAY' ? '#ffd700' : '#8888ff'};">
+        <div style="position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; gap: 8px; pointer-events: auto;">
+
+          <!-- Resources -->
+          <div style="background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(40,40,40,0.9)); padding: 12px 20px; border-radius: 8px; border: 2px solid #444; display: flex; gap: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">🌲</span>
+              <span style="font-weight: bold; font-size: 18px; color: #0f0;">${Math.floor(state.resources.wood)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">⛰️</span>
+              <span style="font-weight: bold; font-size: 18px; color: #888;">${Math.floor(state.resources.ore)}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">💰</span>
+              <span style="font-weight: bold; font-size: 18px; color: #ffd700;">${Math.floor(state.resources.gold)}</span>
+            </div>
+          </div>
+
+          <!-- Phase Timer -->
+          <div style="background: linear-gradient(135deg, ${state.phase === 'DAY' ? 'rgba(255,200,0,0.2)' : 'rgba(100,100,255,0.2)'}, rgba(0,0,0,0.9)); padding: 12px 20px; border-radius: 8px; border: 2px solid ${state.phase === 'DAY' ? '#ffd700' : '#4488ff'}; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <div style="font-size: 22px; font-weight: bold; color: ${state.phase === 'DAY' ? '#ffd700' : '#88aaff'}; text-align: center;">
               ${state.phase === 'DAY' ? '☀️ DAY' : '🌙 NIGHT'}
             </div>
-            <div style="font-size: 16px; margin-top: 5px;">
-              ${Math.ceil(state.phaseTimer)}s remaining
+            <div style="font-size: 16px; text-align: center; margin-top: 4px; color: #fff;">
+              ${Math.ceil(state.phaseTimer)}s
             </div>
-            ${state.phase === 'NIGHT' ? `<div style="font-size: 16px; margin-top: 5px; color: #f88;">Wave ${state.waveNumber}</div>` : ''}
+            ${state.phase === 'NIGHT' ? `<div style="font-size: 14px; text-align: center; margin-top: 4px; color: #f88;">Wave ${state.waveNumber}</div>` : ''}
           </div>
 
-          <div style="background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 2px solid #444;">
-            <div style="font-size: 18px; font-weight: bold;">Town Core</div>
-            <div style="margin-top: 5px;">
-              <div style="background: #333; height: 20px; width: 200px; border-radius: 4px; overflow: hidden;">
-                <div style="background: ${state.townCore.hp > 500 ? '#0f0' : state.townCore.hp > 250 ? '#ff0' : '#f00'}; height: 100%; width: ${(state.townCore.hp / state.townCore.maxHp) * 100}%;"></div>
-              </div>
-              <div style="font-size: 14px; margin-top: 2px;">${Math.ceil(state.townCore.hp)} / ${state.townCore.maxHp}</div>
+          <!-- Town Hall HP -->
+          <div style="background: linear-gradient(135deg, rgba(0,0,0,0.9), rgba(40,40,40,0.9)); padding: 12px 20px; border-radius: 8px; border: 2px solid #444; min-width: 220px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 6px;">🏛️ Town Hall</div>
+            <div style="background: #222; height: 24px; border-radius: 4px; overflow: hidden; border: 2px solid #000;">
+              <div style="background: linear-gradient(90deg, ${state.townCore.hp > 1000 ? '#0f0' : state.townCore.hp > 500 ? '#ff0' : '#f00'}, ${state.townCore.hp > 1000 ? '#0a0' : state.townCore.hp > 500 ? '#cc0' : '#a00'}); height: 100%; width: ${(state.townCore.hp / state.townCore.maxHp) * 100}%;"></div>
             </div>
+            <div style="font-size: 13px; margin-top: 4px; text-align: center; color: #aaa;">${Math.ceil(state.townCore.hp)} / ${state.townCore.maxHp}</div>
           </div>
         </div>
 
-        <!-- Build Menu (DAY only) -->
-        ${state.phase === 'DAY' ? `
-          <div style="position: absolute; top: 120px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 2px solid #444; pointer-events: auto;">
-            <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Build</div>
-            ${this.renderBuildButtons()}
-          </div>
-        ` : ''}
-
-        <!-- Inventory -->
-        <div style="position: absolute; bottom: 10px; left: 10px; max-width: 600px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 2px solid #444; pointer-events: auto;">
-          <div style="font-size: 18px; font-weight: bold; margin-bottom: 10px;">Inventory (${state.inventory.length} items)</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto;">
-            ${state.inventory.map(item => this.renderInventoryItem(item)).join('')}
-            ${state.inventory.length === 0 ? '<div style="color: #888;">No items yet. Kill enemies at night!</div>' : ''}
-          </div>
-        </div>
+        <!-- Click-to-Build Menu -->
+        ${state.buildMenuPosition ? this.renderBuildMenu() : ''}
 
         <!-- Selected Building Panel -->
         ${state.selectedBuilding ? this.renderBuildingPanel(state.selectedBuilding) : ''}
 
-        <!-- Controls Help -->
-        <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; border: 2px solid #444; font-size: 12px; pointer-events: auto;">
-          <div style="font-weight: bold; margin-bottom: 5px;">Controls</div>
-          <div>• Click buildings to select</div>
-          <div>• Click ground to place (DAY)</div>
-          <div>• Click loot to pickup</div>
-          <div>• Drag items to sockets</div>
-          <div>• WASD or Arrow keys to pan</div>
+        <!-- Inventory (Bottom Left) -->
+        <div style="position: absolute; bottom: 8px; left: 8px; max-width: 500px; background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,30,0.95)); padding: 12px; border-radius: 8px; border: 2px solid #444; pointer-events: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+          <div style="font-size: 16px; font-weight: bold; margin-bottom: 8px; color: #ffd700;">💎 Inventory (${state.inventory.length})</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto;">
+            ${state.inventory.map(item => this.renderInventoryItem(item)).join('')}
+            ${state.inventory.length === 0 ? '<div style="color: #666; font-size: 13px;">Kill enemies at night for loot!</div>' : ''}
+          </div>
+        </div>
+
+        <!-- Controls Help (Bottom Right) -->
+        <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.85); padding: 10px 14px; border-radius: 6px; border: 2px solid #333; font-size: 11px; pointer-events: auto; max-width: 200px;">
+          <div style="font-weight: bold; margin-bottom: 4px; color: #ffd700;">⌨️ Controls</div>
+          <div style="color: #aaa;">• Move mouse to edge → pan</div>
+          <div style="color: #aaa;">• Click ground → build menu</div>
+          <div style="color: #aaa;">• Click building → select</div>
+          <div style="color: #aaa;">• Drag items → socket</div>
         </div>
       </div>
     `;
@@ -76,68 +91,91 @@ export class UI {
     this.attachEventListeners();
   }
 
-  private renderBuildButtons(): string {
-    const buildings = ['arrowTower', 'healerTotem', 'barracks'];
+  private renderBuildMenu(): string {
+    const state = this.engine.state;
+    if (!state.buildMenuPosition) return '';
 
-    return buildings.map(defId => {
-      const def = buildingDefs[defId];
-      const selected = this.engine.state.buildMode?.id === defId;
-
-      return `
-        <button
-          data-build="${defId}"
-          style="
-            display: block;
-            width: 100%;
-            margin-bottom: 8px;
-            padding: 10px;
-            background: ${selected ? '#4488ff' : '#333'};
-            color: #fff;
-            border: 2px solid ${selected ? '#88aaff' : '#666'};
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            text-align: left;
-          "
-        >
-          <div style="font-size: 20px; display: inline-block; width: 30px;">${def.icon}</div>
-          <div style="display: inline-block; vertical-align: top;">
-            <div style="font-weight: bold;">${def.name}</div>
-            <div style="font-size: 11px; color: #aaa;">${def.description}</div>
-          </div>
-        </button>
-      `;
-    }).join('');
-  }
-
-  private renderInventoryItem(item: Item): string {
-    const def = itemDefs[item.defId];
-    if (!def) return '';
-
-    const rarityColors: Record<string, string> = {
-      common: '#fff',
-      uncommon: '#0f0',
-      rare: '#4af',
-      epic: '#a0f'
+    const screenPos = {
+      x: state.buildMenuPosition.x - state.camera.x,
+      y: state.buildMenuPosition.y - state.camera.y
     };
 
+    const categories = [
+      { name: 'Production', cat: 'production', icon: '⚔️' },
+      { name: 'Military', cat: 'military', icon: '🗼' },
+      { name: 'Resource', cat: 'resource', icon: '📦' },
+      { name: 'Tech', cat: 'tech', icon: '🔬' }
+    ];
+
     return `
-      <div
-        data-item-id="${item.id}"
-        draggable="true"
-        style="
-          background: #222;
-          border: 2px solid ${rarityColors[def.rarity]};
-          border-radius: 4px;
-          padding: 8px;
-          cursor: grab;
-          min-width: 120px;
-        "
-        title="${def.description}"
-      >
-        <div style="font-size: 24px; text-align: center;">${def.icon}</div>
-        <div style="font-size: 12px; font-weight: bold; text-align: center; color: ${rarityColors[def.rarity]};">
-          ${def.name}
+      <div style="position: absolute; left: ${screenPos.x}px; top: ${screenPos.y}px; transform: translate(-50%, -50%); pointer-events: auto;">
+        <div style="background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(40,40,60,0.95)); padding: 16px; border-radius: 12px; border: 3px solid #4488ff; box-shadow: 0 8px 24px rgba(0,0,0,0.8); min-width: 280px;">
+          <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; text-align: center; color: #4488ff;">🏗️ Build Menu</div>
+
+          ${categories.map(({ name, cat, icon }) => {
+            const buildings = getBuildingsByCategory(cat);
+            if (buildings.length === 0) return '';
+
+            return `
+              <div style="margin-bottom: 12px;">
+                <div style="font-size: 13px; font-weight: bold; color: #888; margin-bottom: 6px;">${icon} ${name}</div>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  ${buildings.map(def => {
+                    const canAfford = this.engine.canAfford(def.cost);
+                    return `
+                      <button
+                        data-build="${def.id}"
+                        style="
+                          padding: 8px 12px;
+                          background: ${canAfford ? 'linear-gradient(135deg, #444, #333)' : '#222'};
+                          color: ${canAfford ? '#fff' : '#666'};
+                          border: 2px solid ${canAfford ? '#666' : '#333'};
+                          border-radius: 6px;
+                          cursor: ${canAfford ? 'pointer' : 'not-allowed'};
+                          font-size: 13px;
+                          text-align: left;
+                          transition: all 0.2s;
+                          display: flex;
+                          justify-content: space-between;
+                          align-items: center;
+                        "
+                        ${!canAfford ? 'disabled' : ''}
+                        onmouseover="if(!this.disabled) this.style.background='linear-gradient(135deg, #555, #444)'; if(!this.disabled) this.style.borderColor='#888';"
+                        onmouseout="if(!this.disabled) this.style.background='linear-gradient(135deg, #444, #333)'; if(!this.disabled) this.style.borderColor='#666';"
+                      >
+                        <div>
+                          <span style="font-size: 18px; margin-right: 8px;">${def.icon}</span>
+                          <span style="font-weight: bold;">${def.name}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #aaa;">
+                          ${def.cost.wood ? `🌲${def.cost.wood}` : ''}
+                          ${def.cost.ore ? `⛰️${def.cost.ore}` : ''}
+                          ${def.cost.gold ? `💰${def.cost.gold}` : ''}
+                        </div>
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+
+          <button
+            data-close-menu="true"
+            style="
+              width: 100%;
+              padding: 8px;
+              background: #f44;
+              color: #fff;
+              border: 2px solid #a22;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              margin-top: 8px;
+            "
+          >
+            ✕ Close
+          </button>
         </div>
       </div>
     `;
@@ -147,34 +185,39 @@ export class UI {
     const def = buildingDefs[building.defId];
 
     return `
-      <div style="position: absolute; top: 120px; right: 10px; width: 300px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 8px; border: 2px solid #4488ff; pointer-events: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <div style="position: absolute; top: 120px; right: 8px; width: 320px; background: linear-gradient(135deg, rgba(0,0,0,0.95), rgba(30,30,50,0.95)); padding: 16px; border-radius: 8px; border: 2px solid #4488ff; pointer-events: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.6);">
+
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
           <div>
-            <div style="font-size: 24px;">${def.icon} ${def.name}</div>
-            <div style="font-size: 12px; color: #888; margin-top: 2px;">${def.description}</div>
+            <div style="font-size: 28px; margin-bottom: 4px;">${def.icon} ${def.name}</div>
+            <div style="font-size: 12px; color: #888;">${def.description}</div>
           </div>
           <button
             data-deselect="true"
-            style="background: #f44; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer;"
+            style="background: #f44; border: none; color: #fff; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;"
           >
             ✕
           </button>
         </div>
 
-        <div style="margin-top: 10px;">
-          <div style="background: #333; height: 16px; border-radius: 4px; overflow: hidden;">
-            <div style="background: ${building.hp > building.maxHp * 0.5 ? '#0f0' : '#f00'}; height: 100%; width: ${(building.hp / building.maxHp) * 100}%;"></div>
+        <!-- HP Bar -->
+        <div style="margin-top: 12px;">
+          <div style="background: #222; height: 20px; border-radius: 4px; overflow: hidden; border: 2px solid #000;">
+            <div style="background: linear-gradient(90deg, ${building.hp > building.maxHp * 0.5 ? '#0f0' : '#f00'}, ${building.hp > building.maxHp * 0.5 ? '#0a0' : '#a00'}); height: 100%; width: ${(building.hp / building.maxHp) * 100}%;"></div>
           </div>
-          <div style="font-size: 12px; margin-top: 2px;">${Math.ceil(building.hp)} / ${building.maxHp} HP</div>
+          <div style="font-size: 12px; margin-top: 4px; text-align: center; color: #aaa;">${Math.ceil(building.hp)} / ${building.maxHp} HP</div>
         </div>
 
-        <div style="margin-top: 15px;">
-          <div style="font-weight: bold; margin-bottom: 8px;">Item Sockets</div>
+        <!-- Item Sockets -->
+        <div style="margin-top: 16px;">
+          <div style="font-weight: bold; margin-bottom: 10px; font-size: 14px; color: #ffd700;">💎 Item Sockets</div>
           ${this.renderSockets(building)}
         </div>
 
-        <div style="margin-top: 15px; font-size: 11px; color: #888;">
-          Active Emitters: ${building.emitters.length}
+        <!-- Stats -->
+        <div style="margin-top: 12px; font-size: 11px; color: #666; padding-top: 12px; border-top: 1px solid #333;">
+          Active Emitters: ${building.emitters.length} | Socketed Items: ${building.sockets.filter(s => s).length}/2
         </div>
       </div>
     `;
@@ -196,10 +239,10 @@ export class UI {
             data-socket="${index}"
             data-building-id="${building.id}"
             style="
-              background: #222;
+              background: linear-gradient(135deg, #222, #111);
               border: 2px solid ${rarityColors[def.rarity]};
-              border-radius: 4px;
-              padding: 8px;
+              border-radius: 6px;
+              padding: 10px;
               margin-bottom: 8px;
               position: relative;
             "
@@ -209,26 +252,27 @@ export class UI {
               data-building-id="${building.id}"
               style="
                 position: absolute;
-                top: 5px;
-                right: 5px;
+                top: 6px;
+                right: 6px;
                 background: #f44;
                 border: none;
                 color: #fff;
-                width: 20px;
-                height: 20px;
+                width: 24px;
+                height: 24px;
                 border-radius: 50%;
                 cursor: pointer;
-                font-size: 12px;
+                font-size: 14px;
+                font-weight: bold;
                 line-height: 1;
               "
             >
               ✕
             </button>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="font-size: 32px;">${def.icon}</div>
+            <div style="display: flex; align-items: center; gap: 12px; padding-right: 30px;">
+              <div style="font-size: 36px;">${def.icon}</div>
               <div style="flex: 1;">
-                <div style="font-weight: bold; color: ${rarityColors[def.rarity]};">${def.name}</div>
-                <div style="font-size: 11px; color: #aaa; margin-top: 2px;">${def.description}</div>
+                <div style="font-weight: bold; color: ${rarityColors[def.rarity]}; font-size: 14px;">${def.name}</div>
+                <div style="font-size: 11px; color: #aaa; margin-top: 3px;">${def.description}</div>
               </div>
             </div>
           </div>
@@ -239,21 +283,59 @@ export class UI {
             data-socket="${index}"
             data-building-id="${building.id}"
             style="
-              background: #111;
+              background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
               border: 2px dashed #444;
-              border-radius: 4px;
-              padding: 20px;
+              border-radius: 6px;
+              padding: 24px;
               margin-bottom: 8px;
               text-align: center;
               color: #666;
+              font-size: 13px;
             "
           >
             Empty Socket<br/>
-            <span style="font-size: 11px;">Drag item here</span>
+            <span style="font-size: 11px; color: #555;">Drag item here</span>
           </div>
         `;
       }
     }).join('');
+  }
+
+  private renderInventoryItem(item: Item): string {
+    const def = itemDefs[item.defId];
+    if (!def) return '';
+
+    const rarityColors: Record<string, string> = {
+      common: '#fff',
+      uncommon: '#0f0',
+      rare: '#4af',
+      epic: '#a0f'
+    };
+
+    return `
+      <div
+        data-item-id="${item.id}"
+        draggable="true"
+        style="
+          background: linear-gradient(135deg, #222, #111);
+          border: 2px solid ${rarityColors[def.rarity]};
+          border-radius: 6px;
+          padding: 8px;
+          cursor: grab;
+          min-width: 90px;
+          text-align: center;
+          transition: transform 0.2s;
+        "
+        title="${def.description}"
+        onmouseover="this.style.transform='scale(1.05)'"
+        onmouseout="this.style.transform='scale(1)'"
+      >
+        <div style="font-size: 28px; margin-bottom: 4px;">${def.icon}</div>
+        <div style="font-size: 11px; font-weight: bold; color: ${rarityColors[def.rarity]}; line-height: 1.2;">
+          ${def.name}
+        </div>
+      </div>
+    `;
   }
 
   private attachEventListeners(): void {
@@ -265,11 +347,20 @@ export class UI {
         if (defId) {
           const def = buildingDefs[defId];
           this.engine.state.buildMode = def;
-          this.engine.state.selectedBuilding = null;
+          this.engine.state.buildMenuPosition = null;
           this.render();
         }
       });
     });
+
+    // Close build menu
+    const closeBtn = this.container.querySelector('[data-close-menu]');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        this.engine.state.buildMenuPosition = null;
+        this.render();
+      });
+    }
 
     // Deselect button
     const deselectBtn = this.container.querySelector('[data-deselect]');
