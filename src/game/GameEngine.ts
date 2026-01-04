@@ -126,6 +126,15 @@ export class GameEngine {
     }
   }
 
+  startWaveEarly(): void {
+    if (this.state.phase === 'DAY' && !this.state.awaitingTownPlacement) {
+      this.state.phase = 'NIGHT';
+      this.state.phaseTimer = this.state.nightDuration;
+      this.state.waveNumber++;
+      this.spawnWave();
+    }
+  }
+
   private spawnWave(): void {
     const wave = this.state.waveNumber;
     const worldSize = this.state.worldSize;
@@ -444,8 +453,16 @@ export class GameEngine {
         enemy.velocity.y = (toCore.y / dist) * def.speed * speedMod;
       }
 
-      enemy.position.x += enemy.velocity.x * deltaTime;
-      enemy.position.y += enemy.velocity.y * deltaTime;
+      // Check collision before moving
+      const newPos: Vec2 = {
+        x: enemy.position.x + enemy.velocity.x * deltaTime,
+        y: enemy.position.y + enemy.velocity.y * deltaTime
+      };
+
+      if (this.canMoveTo(newPos, def.size)) {
+        enemy.position.x = newPos.x;
+        enemy.position.y = newPos.y;
+      }
 
       // Check collision with core
       if (this.distance(enemy.position, core.position) < 60) {
@@ -507,8 +524,15 @@ export class GameEngine {
             y: nearest.position.y - unit.position.y
           });
 
-          unit.position.x += dir.x * unit.speed * deltaTime;
-          unit.position.y += dir.y * unit.speed * deltaTime;
+          const newPos: Vec2 = {
+            x: unit.position.x + dir.x * unit.speed * deltaTime,
+            y: unit.position.y + dir.y * unit.speed * deltaTime
+          };
+
+          if (this.canMoveTo(newPos, unit.size)) {
+            unit.position.x = newPos.x;
+            unit.position.y = newPos.y;
+          }
         } else {
           const timeSinceAttack = this.state.time - unit.lastAttack;
           if (timeSinceAttack >= unit.attackCooldown) {
@@ -549,8 +573,16 @@ export class GameEngine {
             x: depot.position.x - unit.position.x,
             y: depot.position.y - unit.position.y
           });
-          unit.position.x += dir.x * unit.speed * deltaTime;
-          unit.position.y += dir.y * unit.speed * deltaTime;
+
+          const newPos: Vec2 = {
+            x: unit.position.x + dir.x * unit.speed * deltaTime,
+            y: unit.position.y + dir.y * unit.speed * deltaTime
+          };
+
+          if (this.canMoveTo(newPos, unit.size)) {
+            unit.position.x = newPos.x;
+            unit.position.y = newPos.y;
+          }
         } else {
           // Deposit resources
           if (unit.gathering.resourceType === 'wood') {
@@ -581,8 +613,16 @@ export class GameEngine {
         x: node.position.x - unit.position.x,
         y: node.position.y - unit.position.y
       });
-      unit.position.x += dir.x * unit.speed * deltaTime;
-      unit.position.y += dir.y * unit.speed * deltaTime;
+
+      const newPos: Vec2 = {
+        x: unit.position.x + dir.x * unit.speed * deltaTime,
+        y: unit.position.y + dir.y * unit.speed * deltaTime
+      };
+
+      if (this.canMoveTo(newPos, unit.size)) {
+        unit.position.x = newPos.x;
+        unit.position.y = newPos.y;
+      }
     } else {
       // Gather resources
       if (unit.gathering.amount < unit.gathering.maxCapacity && node.remainingResources > 0) {
@@ -630,8 +670,16 @@ export class GameEngine {
           x: target.position.x - unit.position.x,
           y: target.position.y - unit.position.y
         });
-        unit.position.x += dir.x * unit.speed * deltaTime;
-        unit.position.y += dir.y * unit.speed * deltaTime;
+
+        const newPos: Vec2 = {
+          x: unit.position.x + dir.x * unit.speed * deltaTime,
+          y: unit.position.y + dir.y * unit.speed * deltaTime
+        };
+
+        if (this.canMoveTo(newPos, unit.size)) {
+          unit.position.x = newPos.x;
+          unit.position.y = newPos.y;
+        }
       } else {
         const timeSinceHeal = this.state.time - unit.lastAttack;
         if (timeSinceHeal >= unit.attackCooldown) {
@@ -870,5 +918,21 @@ export class GameEngine {
   private normalize(v: Vec2): Vec2 {
     const len = Math.sqrt(v.x * v.x + v.y * v.y);
     return len > 0 ? { x: v.x / len, y: v.y / len } : { x: 0, y: 0 };
+  }
+
+  /**
+   * Check if a position would collide with resource nodes (trees/ore)
+   * Returns true if the position is valid (no collision)
+   */
+  private canMoveTo(position: Vec2, unitSize: number = 10): boolean {
+    for (const node of this.state.resourceNodes) {
+      const dist = this.distance(position, node.position);
+      const minDist = node.size + unitSize;
+
+      if (dist < minDist) {
+        return false; // Collision detected
+      }
+    }
+    return true; // No collision
   }
 }

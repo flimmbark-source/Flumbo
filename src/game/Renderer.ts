@@ -32,12 +32,15 @@ export class Renderer {
     // Collect all entities for depth sorting
     const entities: Array<{ y: number; draw: () => void }> = [];
 
-    // Add resource nodes
+    // Add resource nodes (with viewport culling for performance)
+    const viewportPadding = 100; // Extra padding to avoid pop-in
     for (const node of state.resourceNodes) {
-      entities.push({
-        y: node.position.y,
-        draw: () => this.drawResourceNode(node)
-      });
+      if (this.isInViewport(node.position, node.size, camera, viewportPadding)) {
+        entities.push({
+          y: node.position.y,
+          draw: () => this.drawResourceNode(node)
+        });
+      }
     }
 
     // Add buildings
@@ -531,6 +534,23 @@ export class Renderer {
     const b = Math.min(255, parseInt(hex.substr(4, 2), 16) + amount);
 
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  /**
+   * Check if an entity is within the viewport (for culling)
+   */
+  private isInViewport(position: Vec2, size: number, camera: Vec2, padding: number): boolean {
+    const minX = camera.x - padding;
+    const maxX = camera.x + this.canvas.width + padding;
+    const minY = camera.y - padding;
+    const maxY = camera.y + this.canvas.height + padding;
+
+    return (
+      position.x + size >= minX &&
+      position.x - size <= maxX &&
+      position.y + size >= minY &&
+      position.y - size <= maxY
+    );
   }
 
   screenToWorld(screenPos: Vec2, camera: Vec2): Vec2 {

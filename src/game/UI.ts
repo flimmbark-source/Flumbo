@@ -53,6 +53,29 @@ export class UI {
               ? `<div style=\"font-size: 13px; text-align: center; margin-top: 6px; color: #b5d8ff;\">Timer starts after placement</div>`
               : state.phase === 'NIGHT' ? `<div style=\"font-size: 14px; text-align: center; margin-top: 4px; color: #f88;\">Wave ${state.waveNumber}</div>`
               : ''}
+            ${!state.awaitingTownPlacement && state.phase === 'DAY' ? `
+              <button
+                data-start-wave="true"
+                style="
+                  width: 100%;
+                  margin-top: 8px;
+                  padding: 8px 16px;
+                  background: linear-gradient(135deg, #f44, #c22);
+                  color: #fff;
+                  border: 2px solid #a00;
+                  border-radius: 6px;
+                  cursor: pointer;
+                  font-weight: bold;
+                  font-size: 14px;
+                  transition: all 0.2s;
+                  box-shadow: 0 2px 8px rgba(255,0,0,0.3);
+                "
+                onmouseover="this.style.background='linear-gradient(135deg, #f66, #d33)'; this.style.transform='scale(1.05)';"
+                onmouseout="this.style.background='linear-gradient(135deg, #f44, #c22)'; this.style.transform='scale(1)';"
+              >
+                ⚔️ GO!
+              </button>
+            ` : ''}
           </div>
 
           <!-- Town Hall HP -->
@@ -351,6 +374,15 @@ export class UI {
   }
 
   private attachEventListeners(): void {
+    // Start wave button
+    const startWaveBtn = this.container.querySelector('[data-start-wave]');
+    if (startWaveBtn) {
+      startWaveBtn.addEventListener('click', () => {
+        this.engine.startWaveEarly();
+        this.render();
+      });
+    }
+
     // Build buttons
     const buildButtons = this.container.querySelectorAll('[data-build]');
     buildButtons.forEach(btn => {
