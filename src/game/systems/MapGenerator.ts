@@ -39,7 +39,9 @@ export class MapGenerator {
           id: `tree_${idCounter++}`,
           type: 'tree',
           position: pos,
-          size: 20
+          size: 20,
+          remainingResources: 500,
+          maxResources: 500
         });
       }
     }
@@ -62,7 +64,9 @@ export class MapGenerator {
           id: `ore_${idCounter++}`,
           type: 'ore',
           position: pos,
-          size: 16
+          size: 16,
+          remainingResources: 800,
+          maxResources: 800
         });
       }
     }

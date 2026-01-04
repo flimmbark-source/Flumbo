@@ -1,12 +1,12 @@
-import { EnemyDef } from '../types';
+import { EnemyDef, UnitRole } from '../types';
 
 export const enemyDefs: Record<string, EnemyDef> = {
   goblin: {
     id: 'goblin',
     name: 'Goblin',
-    maxHp: 50,
-    speed: 40,
-    damage: 5,
+    maxHp: 60,
+    speed: 45,
+    damage: 8,
     size: 12,
     color: '#4a9c2d',
     lootChance: 0.3
@@ -15,9 +15,9 @@ export const enemyDefs: Record<string, EnemyDef> = {
   orc: {
     id: 'orc',
     name: 'Orc',
-    maxHp: 100,
-    speed: 30,
-    damage: 10,
+    maxHp: 120,
+    speed: 35,
+    damage: 15,
     size: 16,
     color: '#8b4513',
     lootChance: 0.4
@@ -26,22 +26,70 @@ export const enemyDefs: Record<string, EnemyDef> = {
   troll: {
     id: 'troll',
     name: 'Troll',
-    maxHp: 200,
-    speed: 20,
-    damage: 20,
+    maxHp: 250,
+    speed: 25,
+    damage: 25,
     size: 24,
     color: '#654321',
     lootChance: 0.6
   }
 };
 
-export const guardUnitDef = {
-  id: 'guard',
-  name: 'Guard',
-  maxHp: 60,
-  speed: 50,
-  damage: 8,
-  size: 10,
-  attackRange: 50,
-  attackCooldown: 1.5
+// Allied unit definitions (RTS style)
+export interface UnitDef {
+  id: string;
+  name: string;
+  role: UnitRole;
+  maxHp: number;
+  speed: number;
+  damage: number;
+  size: number;
+  attackRange: number;
+  attackCooldown: number;
+  gatherRate?: number;
+  gatherCapacity?: number;
+  color: string;
+}
+
+export const unitDefs: Record<string, UnitDef> = {
+  worker: {
+    id: 'worker',
+    name: 'Worker',
+    role: 'worker',
+    maxHp: 50,
+    speed: 60,
+    damage: 3,
+    size: 8,
+    attackRange: 30,
+    attackCooldown: 2.0,
+    gatherRate: 10,
+    gatherCapacity: 10,
+    color: '#ffaa00'
+  },
+
+  fighter: {
+    id: 'fighter',
+    name: 'Fighter',
+    role: 'fighter',
+    maxHp: 100,
+    speed: 55,
+    damage: 15,
+    size: 10,
+    attackRange: 50,
+    attackCooldown: 1.2,
+    color: '#ff4444'
+  },
+
+  healer: {
+    id: 'healer',
+    name: 'Healer',
+    role: 'support',
+    maxHp: 70,
+    speed: 50,
+    damage: 0,
+    size: 9,
+    attackRange: 120,
+    attackCooldown: 2.5,
+    color: '#44ff88'
+  }
 };

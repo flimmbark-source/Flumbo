@@ -133,7 +133,22 @@ export interface Item {
   defId: string;
 }
 
+// RTS Resources
+export interface Resources {
+  wood: number;
+  ore: number;
+  gold: number;
+}
+
+export interface ResourceCost {
+  wood?: number;
+  ore?: number;
+  gold?: number;
+}
+
 // Building system
+export type BuildingCategory = 'core' | 'production' | 'military' | 'tech' | 'resource';
+
 export interface BuildingDef {
   id: string;
   name: string;
@@ -142,6 +157,9 @@ export interface BuildingDef {
   radius: number;
   baseEmitters: EmitterDef[];
   description: string;
+  category: BuildingCategory;
+  cost: ResourceCost;
+  buildTime?: number;
 }
 
 export interface Building {
@@ -152,6 +170,8 @@ export interface Building {
   maxHp: number;
   sockets: (Item | null)[];
   emitters: Emitter[];
+  rallyPoint?: Vec2;
+  constructionProgress?: number;
 }
 
 // Enemy system
@@ -185,6 +205,8 @@ export interface StatusEffect {
 }
 
 // Allied unit system
+export type UnitRole = 'worker' | 'fighter' | 'support';
+
 export interface AllyUnit {
   id: string;
   defId: string;
@@ -198,6 +220,15 @@ export interface AllyUnit {
   size: number;
   tags: string[];
   sourceBuilding: string;
+  role: UnitRole;
+  // Worker-specific
+  gathering?: {
+    targetNodeId: string;
+    resourceType: 'wood' | 'ore';
+    amount: number;
+    maxCapacity: number;
+    returningToDepot: boolean;
+  };
 }
 
 // Resource nodes
@@ -206,6 +237,8 @@ export interface ResourceNode {
   type: 'tree' | 'ore';
   position: Vec2;
   size: number;
+  remainingResources: number;
+  maxResources: number;
 }
 
 // Projectiles
@@ -236,6 +269,9 @@ export interface GameState {
   nightDuration: number;
   waveNumber: number;
 
+  // RTS resources
+  resources: Resources;
+
   townCore: Building;
   buildings: Building[];
   enemies: Enemy[];
@@ -246,6 +282,10 @@ export interface GameState {
 
   inventory: Item[];
   selectedBuilding: Building | null;
+  selectedUnits: AllyUnit[];
+
+  // Build menu state (appears on ground click)
+  buildMenuPosition: Vec2 | null;
   buildMode: BuildingDef | null;
 
   camera: Vec2;
