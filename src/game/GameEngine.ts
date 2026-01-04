@@ -372,7 +372,7 @@ export class GameEngine {
     if (unitDef.role === 'worker' && unitDef.gatherCapacity) {
       newUnit.gathering = {
         targetNodeId: '',
-        resourceType: 'tree',
+        resourceType: 'wood',
         amount: 0,
         maxCapacity: unitDef.gatherCapacity,
         returningToDepot: false

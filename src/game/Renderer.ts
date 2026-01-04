@@ -341,7 +341,7 @@ export class Renderer {
     ctx.strokeRect(enemy.position.x - barWidth / 2, enemy.position.y + def.size + 3, barWidth, 6);
   }
 
-  private drawAllyUnit(unit: AllyUnit, state: GameState): void {
+  private drawAllyUnit(unit: AllyUnit, _state: GameState): void {
     const ctx = this.ctx;
     const unitDef = unitDefs[unit.defId];
 
