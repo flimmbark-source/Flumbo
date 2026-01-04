@@ -471,19 +471,59 @@ export class GameEngine {
         speedMod = 1 - slowStatus.potency;
       }
 
-      // Move toward core
+      // Move toward core with obstacle avoidance
       const toCore = {
         x: core.position.x - enemy.position.x,
         y: core.position.y - enemy.position.y
       };
       const dist = Math.sqrt(toCore.x * toCore.x + toCore.y * toCore.y);
 
+      let desiredDir = { x: 0, y: 0 };
       if (dist > 0) {
-        enemy.velocity.x = (toCore.x / dist) * def.speed * speedMod;
-        enemy.velocity.y = (toCore.y / dist) * def.speed * speedMod;
+        desiredDir = {
+          x: toCore.x / dist,
+          y: toCore.y / dist
+        };
       }
 
-      // Check collision before moving
+      // Obstacle avoidance - find nearby obstacles and steer around them
+      const avoidanceForce = { x: 0, y: 0 };
+      const lookAheadDist = def.size + 50; // How far to look for obstacles
+
+      for (const node of this.state.resourceNodes) {
+        const toObstacle = {
+          x: node.position.x - enemy.position.x,
+          y: node.position.y - enemy.position.y
+        };
+        const obstacleDist = Math.sqrt(toObstacle.x * toObstacle.x + toObstacle.y * toObstacle.y);
+
+        // Only consider obstacles that are nearby and somewhat ahead
+        if (obstacleDist < lookAheadDist) {
+          const minDist = node.size + def.size;
+
+          // Calculate how much we need to avoid this obstacle
+          if (obstacleDist < minDist + 10) {
+            // Repulsion force - push away from obstacle
+            const repulsionStrength = 1 - (obstacleDist / (minDist + 10));
+            avoidanceForce.x -= (toObstacle.x / obstacleDist) * repulsionStrength;
+            avoidanceForce.y -= (toObstacle.y / obstacleDist) * repulsionStrength;
+          }
+        }
+      }
+
+      // Combine desired direction with avoidance force
+      const finalDir = {
+        x: desiredDir.x + avoidanceForce.x,
+        y: desiredDir.y + avoidanceForce.y
+      };
+      const finalDirLen = Math.sqrt(finalDir.x * finalDir.x + finalDir.y * finalDir.y);
+
+      if (finalDirLen > 0) {
+        enemy.velocity.x = (finalDir.x / finalDirLen) * def.speed * speedMod;
+        enemy.velocity.y = (finalDir.y / finalDirLen) * def.speed * speedMod;
+      }
+
+      // Try to move
       const newPos: Vec2 = {
         x: enemy.position.x + enemy.velocity.x * deltaTime,
         y: enemy.position.y + enemy.velocity.y * deltaTime
@@ -492,6 +532,33 @@ export class GameEngine {
       if (this.canMoveTo(newPos, def.size)) {
         enemy.position.x = newPos.x;
         enemy.position.y = newPos.y;
+      } else {
+        // If still blocked, try moving perpendicular to the obstacle
+        const perpDir = { x: -enemy.velocity.y, y: enemy.velocity.x };
+        const perpLen = Math.sqrt(perpDir.x * perpDir.x + perpDir.y * perpDir.y);
+
+        if (perpLen > 0) {
+          const perpPos: Vec2 = {
+            x: enemy.position.x + (perpDir.x / perpLen) * def.speed * speedMod * deltaTime,
+            y: enemy.position.y + (perpDir.y / perpLen) * def.speed * speedMod * deltaTime
+          };
+
+          if (this.canMoveTo(perpPos, def.size)) {
+            enemy.position.x = perpPos.x;
+            enemy.position.y = perpPos.y;
+          } else {
+            // Try the other perpendicular direction
+            const perpPos2: Vec2 = {
+              x: enemy.position.x - (perpDir.x / perpLen) * def.speed * speedMod * deltaTime,
+              y: enemy.position.y - (perpDir.y / perpLen) * def.speed * speedMod * deltaTime
+            };
+
+            if (this.canMoveTo(perpPos2, def.size)) {
+              enemy.position.x = perpPos2.x;
+              enemy.position.y = perpPos2.y;
+            }
+          }
+        }
       }
 
       // Check collision with core
