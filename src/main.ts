@@ -17,8 +17,8 @@ class Game {
   private placementPreview: Vec2 | null = null;
 
   constructor() {
-    this.setupDOM();
     this.engine = new GameEngine();
+    this.setupDOM();
     this.renderer = new Renderer(this.canvas);
     this.ui = new UI(this.uiContainer, this.engine);
 
