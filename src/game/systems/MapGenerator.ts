@@ -1,7 +1,8 @@
 import { Clearing, ForestPath, ResourceNode, Vec2 } from '../types';
 
 /**
- * Deterministic map generation using seeded random
+ * Deterministic map generation with many natural pathways
+ * Creates a web of interconnected trails and clearings
  */
 export class MapGenerator {
   private seed: number;
@@ -22,37 +23,134 @@ export class MapGenerator {
 
     const center: Vec2 = { x: worldSize.x / 2, y: worldSize.y / 2 };
     const clearings: Clearing[] = [
-      { center, radius: 220, softness: 90 }
+      // Central clearing (larger)
+      { center, radius: 250, softness: 100 }
     ];
 
-    const entryPoints: Vec2[] = [
-      { x: worldSize.x / 2, y: 0 },
-      { x: worldSize.x / 2, y: worldSize.y },
-      { x: 0, y: worldSize.y * 0.35 },
-      { x: worldSize.x, y: worldSize.y * 0.6 }
-    ].map((p) => ({
-      x: p.x + (this.random() - 0.5) * 120,
-      y: p.y + (this.random() - 0.5) * 120
-    }));
-
-    const paths: ForestPath[] = entryPoints.map((from) => ({
-      from,
-      to: center,
-      width: 180 + this.random() * 40
-    }));
-
-    // Additional meadow pockets off the main paths
-    for (let i = 0; i < 4; i++) {
-      const angle = (Math.PI / 2) * i + this.random() * 0.6;
-      const distance = 350 + this.random() * 250;
+    // Create many small clearings scattered across the map
+    const clearingCount = 25;
+    for (let i = 0; i < clearingCount; i++) {
+      const angle = (Math.PI * 2 * i) / clearingCount + this.random() * 0.5;
+      const distance = 300 + this.random() * 800;
       const position: Vec2 = {
         x: center.x + Math.cos(angle) * distance,
         y: center.y + Math.sin(angle) * distance
       };
+
+      // Vary clearing sizes
+      const radius = 80 + this.random() * 120;
       clearings.push({
         center: position,
-        radius: 140 + this.random() * 90,
-        softness: 70
+        radius,
+        softness: 50 + this.random() * 40
+      });
+    }
+
+    // Additional random clearings for more variety
+    for (let i = 0; i < 15; i++) {
+      const position: Vec2 = {
+        x: this.random() * worldSize.x,
+        y: this.random() * worldSize.y
+      };
+
+      clearings.push({
+        center: position,
+        radius: 60 + this.random() * 80,
+        softness: 40 + this.random() * 30
+      });
+    }
+
+    // Create many small pathways connecting clearings
+    const paths: ForestPath[] = [];
+
+    // Connect each clearing to 2-4 nearby clearings
+    for (let i = 0; i < clearings.length; i++) {
+      const clearing = clearings[i];
+      const connectionCount = Math.floor(2 + this.random() * 3); // 2-4 connections
+
+      // Find nearest clearings
+      const distances = clearings
+        .map((c, index) => ({
+          index,
+          dist: Math.sqrt(
+            Math.pow(c.center.x - clearing.center.x, 2) +
+            Math.pow(c.center.y - clearing.center.y, 2)
+          )
+        }))
+        .filter(d => d.index !== i) // Exclude self
+        .sort((a, b) => a.dist - b.dist);
+
+      // Connect to nearest clearings
+      for (let j = 0; j < Math.min(connectionCount, distances.length); j++) {
+        const targetClearing = clearings[distances[j].index];
+
+        // Check if path already exists (avoid duplicates)
+        const pathExists = paths.some(p =>
+          (this.samePoint(p.from, clearing.center) && this.samePoint(p.to, targetClearing.center)) ||
+          (this.samePoint(p.from, targetClearing.center) && this.samePoint(p.to, clearing.center))
+        );
+
+        if (!pathExists) {
+          // Create winding path with slight curve
+          const midpoint: Vec2 = {
+            x: (clearing.center.x + targetClearing.center.x) / 2 + (this.random() - 0.5) * 100,
+            y: (clearing.center.y + targetClearing.center.y) / 2 + (this.random() - 0.5) * 100
+          };
+
+          // Add two segments to create a curve
+          paths.push({
+            from: clearing.center,
+            to: midpoint,
+            width: 60 + this.random() * 80
+          });
+
+          paths.push({
+            from: midpoint,
+            to: targetClearing.center,
+            width: 60 + this.random() * 80
+          });
+        }
+      }
+    }
+
+    // Add some straight paths from map edges to clearings (entry points)
+    const edgeEntryCount = 8;
+    for (let i = 0; i < edgeEntryCount; i++) {
+      const side = Math.floor(this.random() * 4); // 0: top, 1: right, 2: bottom, 3: left
+      let entryPoint: Vec2;
+
+      switch (side) {
+        case 0: // Top
+          entryPoint = { x: this.random() * worldSize.x, y: 0 };
+          break;
+        case 1: // Right
+          entryPoint = { x: worldSize.x, y: this.random() * worldSize.y };
+          break;
+        case 2: // Bottom
+          entryPoint = { x: this.random() * worldSize.x, y: worldSize.y };
+          break;
+        default: // Left
+          entryPoint = { x: 0, y: this.random() * worldSize.y };
+      }
+
+      // Find nearest clearing
+      let nearestClearing = clearings[0];
+      let minDist = Infinity;
+      for (const clearing of clearings) {
+        const dist = Math.sqrt(
+          Math.pow(clearing.center.x - entryPoint.x, 2) +
+          Math.pow(clearing.center.y - entryPoint.y, 2)
+        );
+        if (dist < minDist) {
+          minDist = dist;
+          nearestClearing = clearing;
+        }
+      }
+
+      paths.push({
+        from: entryPoint,
+        to: nearestClearing.center,
+        width: 80 + this.random() * 60
       });
     }
 
@@ -81,6 +179,10 @@ export class MapGenerator {
     }
 
     return { nodes, paths, clearings };
+  }
+
+  private samePoint(a: Vec2, b: Vec2): boolean {
+    return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1;
   }
 
   private inClearing(pos: Vec2, clearings: Clearing[], paths: ForestPath[]): boolean {

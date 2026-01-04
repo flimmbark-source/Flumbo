@@ -23,7 +23,7 @@ export class GameEngine {
     this.effectResolver = new EffectResolver();
     this.emitterSystem = new EmitterSystem();
 
-    const worldSize: Vec2 = { x: 2000, y: 1500 };
+    const worldSize: Vec2 = { x: 4000, y: 3000 };
 
     // Create Town Hall (RTS core building)
     const townHall: Building = {

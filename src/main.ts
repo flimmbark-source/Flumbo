@@ -16,6 +16,7 @@ class Game {
   private keys = new Set<string>();
   private mousePos: Vec2 = { x: 0, y: 0 };
   private placementPreview: Vec2 | null = null;
+  private cameraMovement: Vec2 = { x: 0, y: 0 };
 
   constructor() {
     this.engine = new GameEngine();
@@ -181,32 +182,43 @@ class Game {
     const edgeScrollZone = 20; // pixels from edge
     const cameraSpeed = 400;
 
+    // Reset camera movement tracker
+    this.cameraMovement = { x: 0, y: 0 };
+
     // Check mouse position for edge scrolling
     if (this.mousePos.x < edgeScrollZone) {
       this.engine.state.camera.x -= cameraSpeed * deltaTime;
+      this.cameraMovement.x = -1;
     }
     if (this.mousePos.x > this.canvas.width - edgeScrollZone) {
       this.engine.state.camera.x += cameraSpeed * deltaTime;
+      this.cameraMovement.x = 1;
     }
     if (this.mousePos.y < edgeScrollZone) {
       this.engine.state.camera.y -= cameraSpeed * deltaTime;
+      this.cameraMovement.y = -1;
     }
     if (this.mousePos.y > this.canvas.height - edgeScrollZone) {
       this.engine.state.camera.y += cameraSpeed * deltaTime;
+      this.cameraMovement.y = 1;
     }
 
     // WASD/Arrow key camera movement (still supported)
     if (this.keys.has('w') || this.keys.has('arrowup')) {
       this.engine.state.camera.y -= cameraSpeed * deltaTime;
+      this.cameraMovement.y = -1;
     }
     if (this.keys.has('s') || this.keys.has('arrowdown')) {
       this.engine.state.camera.y += cameraSpeed * deltaTime;
+      this.cameraMovement.y = 1;
     }
     if (this.keys.has('a') || this.keys.has('arrowleft')) {
       this.engine.state.camera.x -= cameraSpeed * deltaTime;
+      this.cameraMovement.x = -1;
     }
     if (this.keys.has('d') || this.keys.has('arrowright')) {
       this.engine.state.camera.x += cameraSpeed * deltaTime;
+      this.cameraMovement.x = 1;
     }
 
     // Clamp camera
@@ -232,13 +244,49 @@ class Game {
   private render(): void {
     this.renderer.render(this.engine.state);
 
+    const ctx = this.canvas.getContext('2d')!;
+
+    // Draw camera movement arrow
+    if (this.cameraMovement.x !== 0 || this.cameraMovement.y !== 0) {
+      const angle = Math.atan2(this.cameraMovement.y, this.cameraMovement.x);
+      const arrowSize = 30;
+      const cursorX = this.mousePos.x;
+      const cursorY = this.mousePos.y;
+
+      ctx.save();
+      ctx.translate(cursorX, cursorY);
+      ctx.rotate(angle);
+
+      // Arrow shadow
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+
+      // Arrow fill
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.moveTo(arrowSize, 0);
+      ctx.lineTo(-arrowSize * 0.5, -arrowSize * 0.6);
+      ctx.lineTo(-arrowSize * 0.3, 0);
+      ctx.lineTo(-arrowSize * 0.5, arrowSize * 0.6);
+      ctx.closePath();
+      ctx.fill();
+
+      // Arrow outline
+      ctx.strokeStyle = '#cc9900';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     // Draw placement preview
     const placementDef = this.engine.state.awaitingTownPlacement
       ? buildingDefs.townHall
       : this.engine.state.buildMode;
 
     if (this.placementPreview && placementDef) {
-      const ctx = this.canvas.getContext('2d')!;
       const camera = this.engine.state.camera;
       const def = placementDef;
 
