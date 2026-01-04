@@ -1,7 +1,7 @@
 import { GameEngine } from './game/GameEngine';
 import { Renderer } from './game/Renderer';
 import { UI } from './game/UI';
-import { Vec2 } from './game/types';
+import { Building, Vec2 } from './game/types';
 import { buildingDefs } from './game/data/buildings';
 
 class Game {
@@ -97,6 +97,39 @@ class Game {
       const worldPos = this.renderer.screenToWorld(screenPos, this.engine.state.camera);
 
       this.handleClick(worldPos);
+    });
+
+    // Dragging items from inventory onto buildings on the map
+    this.canvas.addEventListener('dragover', (e) => {
+      if (e instanceof DragEvent) {
+        e.preventDefault();
+        e.dataTransfer!.dropEffect = 'move';
+      }
+    });
+
+    this.canvas.addEventListener('drop', (e) => {
+      if (!(e instanceof DragEvent) || !e.dataTransfer) return;
+
+      e.preventDefault();
+
+      const itemId = e.dataTransfer.getData('text/plain');
+      if (!itemId) return;
+
+      const rect = this.canvas.getBoundingClientRect();
+      const screenPos: Vec2 = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      const worldPos = this.renderer.screenToWorld(screenPos, this.engine.state.camera);
+
+      const targetBuilding = this.findBuildingAt(worldPos);
+      if (!targetBuilding) return;
+
+      const emptyIndex = targetBuilding.sockets.findIndex(s => !s);
+      const socketIndex = emptyIndex >= 0 ? emptyIndex : 0;
+
+      this.engine.socketItem(targetBuilding, socketIndex, itemId);
+      this.ui.render();
     });
   }
 
@@ -286,6 +319,24 @@ class Game {
       this.engine.state.worldSize.y - this.canvas.height,
       this.engine.state.camera.y
     ));
+  }
+
+  private findBuildingAt(worldPos: Vec2): Building | null {
+    const state = this.engine.state;
+    const allBuildings = [state.townCore, ...state.buildings];
+
+    for (const building of allBuildings) {
+      const def = buildingDefs[building.defId];
+      const dx = worldPos.x - building.position.x;
+      const dy = worldPos.y - building.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist <= def.radius + 8) {
+        return building;
+      }
+    }
+
+    return null;
   }
 }
 

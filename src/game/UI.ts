@@ -1,4 +1,4 @@
-import { Building, Item } from './types';
+import { Building, Item, ItemDef } from './types';
 import { buildingDefs, getBuildingsByCategory } from './data/buildings';
 import { itemDefs } from './data/items';
 import { GameEngine } from './GameEngine';
@@ -9,6 +9,7 @@ import { GameEngine } from './GameEngine';
 export class UI {
   private container: HTMLElement;
   private engine: GameEngine;
+  private tooltipEl: HTMLElement | null = null;
 
   constructor(container: HTMLElement, engine: GameEngine) {
     this.container = container;
@@ -18,6 +19,8 @@ export class UI {
 
   render(): void {
     const state = this.engine.state;
+
+    this.hideInventoryTooltip();
 
     this.container.innerHTML = `
       <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
@@ -382,6 +385,7 @@ export class UI {
     return `
       <div
         data-item-id="${item.id}"
+        data-item-def-id="${def.id}"
         draggable="true"
         style="
           background: linear-gradient(135deg, #222, #111);
@@ -393,7 +397,6 @@ export class UI {
           text-align: center;
           transition: transform 0.2s;
         "
-        title="${def.description}"
         onmouseover="this.style.transform='scale(1.05)'"
         onmouseout="this.style.transform='scale(1)'"
       >
@@ -475,6 +478,18 @@ export class UI {
           e.dataTransfer.dropEffect = 'move';
         }
       });
+
+      item.addEventListener('mouseenter', () => {
+        const defId = item.getAttribute('data-item-def-id');
+        if (!defId) return;
+        const def = itemDefs[defId];
+        if (!def) return;
+        this.showInventoryTooltip(item as HTMLElement, def);
+      });
+
+      item.addEventListener('mouseleave', () => {
+        this.hideInventoryTooltip();
+      });
     });
 
     const sockets = this.container.querySelectorAll('[data-socket]');
@@ -528,5 +543,76 @@ export class UI {
       return this.engine.state.townCore;
     }
     return this.engine.state.buildings.find(b => b.id === id) || null;
+  }
+
+  private ensureTooltipElement(): HTMLElement {
+    if (!this.tooltipEl) {
+      const el = document.createElement('div');
+      el.style.position = 'fixed';
+      el.style.pointerEvents = 'none';
+      el.style.zIndex = '2000';
+      el.style.maxWidth = '260px';
+      el.style.padding = '10px 12px';
+      el.style.borderRadius = '8px';
+      el.style.border = '2px solid #555';
+      el.style.background = 'linear-gradient(135deg, rgba(0,0,0,0.95), rgba(20,20,20,0.95))';
+      el.style.color = '#fff';
+      el.style.boxShadow = '0 8px 20px rgba(0,0,0,0.6)';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-4px)';
+      el.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      this.tooltipEl = el;
+    }
+
+    return this.tooltipEl;
+  }
+
+  private showInventoryTooltip(target: HTMLElement, itemDef: ItemDef): void {
+    const rarityColors: Record<string, string> = {
+      common: '#fff',
+      uncommon: '#0f0',
+      rare: '#4af',
+      epic: '#a0f'
+    };
+
+    const tooltip = this.ensureTooltipElement();
+    tooltip.innerHTML = `
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="font-size: 30px;">${itemDef.icon}</div>
+        <div>
+          <div style="font-weight: bold; color: ${rarityColors[itemDef.rarity]}; font-size: 14px;">${itemDef.name}</div>
+          <div style="font-size: 12px; color: #ccc;">${itemDef.description}</div>
+        </div>
+      </div>
+    `;
+
+    tooltip.style.display = 'block';
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.opacity = '0';
+
+    const rect = target.getBoundingClientRect();
+    const desiredLeft = rect.left + rect.width / 2 - tooltip.offsetWidth / 2;
+    const desiredTop = rect.top - tooltip.offsetHeight - 10;
+
+    const clampedLeft = Math.max(8, Math.min(window.innerWidth - tooltip.offsetWidth - 8, desiredLeft));
+    const clampedTop = Math.max(8, desiredTop);
+
+    tooltip.style.left = `${clampedLeft}px`;
+    tooltip.style.top = `${clampedTop}px`;
+    tooltip.style.visibility = 'visible';
+    requestAnimationFrame(() => {
+      tooltip.style.opacity = '1';
+      tooltip.style.transform = 'translateY(0)';
+    });
+  }
+
+  private hideInventoryTooltip(): void {
+    if (this.tooltipEl) {
+      this.tooltipEl.style.opacity = '0';
+      this.tooltipEl.style.transform = 'translateY(-4px)';
+      this.tooltipEl.style.display = 'none';
+    }
   }
 }
